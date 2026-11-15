@@ -60,6 +60,7 @@ const copy = {
     trust: "بيانات نشاطك خاصة بحسابك فقط.",
     section: "الملف التجاري",
     editHint: "يمكنك تحديث المعلومات وحفظ التعديلات في أي وقت.",
+    continueTransactions: "الانتقال إلى سجل المعاملات",
   },
   en: {
     title: "Complete your business profile",
@@ -84,6 +85,7 @@ const copy = {
     trust: "Your business details are private to your account.",
     section: "Business profile",
     editHint: "You can update and save these details at any time.",
+    continueTransactions: "Open transaction ledger",
   },
 } as const;
 
@@ -96,6 +98,7 @@ export default function CompleteClient() {
   const [businessType, setBusinessType] = useState("");
   const [countryCode, setCountryCode] = useState("KW");
   const [currencyCode, setCurrencyCode] = useState("KWD");
+  const [hasProfile, setHasProfile] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
@@ -142,6 +145,7 @@ export default function CompleteClient() {
           setBusinessType(savedProfile.business_type ?? "");
           setCountryCode(savedProfile.country_code);
           setCurrencyCode(savedProfile.currency_code);
+          setHasProfile(true);
         }
         setLoading(false);
       } catch {
@@ -178,6 +182,7 @@ export default function CompleteClient() {
         { onConflict: "user_id" },
       );
       if (saveError) throw saveError;
+      setHasProfile(true);
       setNotice({ kind: "success", message: text.saved });
     } catch {
       setNotice({ kind: "error", message: text.saveError });
@@ -336,6 +341,15 @@ export default function CompleteClient() {
                   <ShieldCheck size={16} className="mt-1 shrink-0 text-[#16a085]" />
                   <span>{text.trust} {text.editHint}</span>
                 </div>
+                {hasProfile && (
+                  <Link
+                    href="/transactions"
+                    data-testid="link-transaction-ledger"
+                    className="mt-5 inline-flex w-full items-center justify-center rounded-xl border border-[#d6b878] px-5 py-3.5 text-sm font-bold text-[#101b30] transition hover:bg-[#f6f2e8]"
+                  >
+                    {text.continueTransactions}
+                  </Link>
+                )}
               </>
             )}
 

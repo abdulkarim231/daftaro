@@ -15,7 +15,7 @@ Daftaro is a planned Arabic-first financial companion for small and home-based b
 
 - pnpm workspaces, Node.js 24, TypeScript 5.9
 - Daftaro: Next.js App Router, React, TypeScript, Tailwind CSS
-- The shared workspace includes an Express API server, PostgreSQL/Drizzle, and OpenAPI code generation; Daftaro does not use them in the landing-page phase.
+- The shared workspace includes an Express API server, PostgreSQL/Drizzle, and OpenAPI code generation; Daftaro currently uses Supabase directly for authentication, profiles, and financial transactions.
 
 ## Where things live
 
@@ -23,6 +23,7 @@ Daftaro is a planned Arabic-first financial companion for small and home-based b
 - `artifacts/daftaro/src/App.tsx` — Arabic/English landing page content and interactions
 - `artifacts/daftaro/src/index.css` — brand styling
 - `artifacts/daftaro/src/app/auth/` — Supabase email/password signup (`/auth/signup`), sign-in, confirmation, and business-profile onboarding
+- `artifacts/daftaro/src/app/transactions/` — authenticated income and expense ledger
 - `artifacts/daftaro/src/app/connection-test/` — temporary read-only Supabase connection check
 - `artifacts/daftaro/supabase/migrations/` — versioned Supabase schema changes
 - `lib/api-spec/openapi.yaml` — shared API contract, when a later approved phase needs backend routes
@@ -33,13 +34,13 @@ Daftaro is a planned Arabic-first financial companion for small and home-based b
 - The first phase is the landing page only. Do not add Supabase, a dashboard, authentication, OCR, or other internal features before approval.
 - Keep financial arithmetic deterministic in code; AI may explain verified results but must not invent figures or modify records.
 - Authentication uses Supabase email/password with PKCE. Keep email confirmation enabled; users must be redirected only to allow-listed callback URLs.
-- The auth completion page owns the business-profile onboarding. Keep financial records and dashboards in their later approved phases.
+- The auth completion page owns business-profile onboarding; `/transactions` owns income and expense records. Keep product costs, profit calculations, dashboards, and AI in their later approved phases.
 - Implement billing with Stripe Test Mode only until the user explicitly approves live payments and account eligibility is confirmed.
 - OCR is the final phase; compare providers and wait for approval before selecting one.
 
 ## Product
 
-Daftaro helps small businesses record revenue and expenses, understand product costs and profit, and make better financial decisions. The bilingual landing page, Supabase email/password authentication, and business-profile onboarding are implemented; financial records and dashboards are not live yet.
+Daftaro helps small businesses record revenue and expenses, understand product costs and profit, and make better financial decisions. The bilingual landing page, Supabase authentication, business-profile onboarding, and income/expense ledger are implemented; product management, profit calculations, dashboards, and AI are not live yet.
 
 ## User preferences
 
