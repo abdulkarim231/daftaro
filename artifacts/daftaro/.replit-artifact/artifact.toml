@@ -8,7 +8,7 @@ router = "path"
 
 [[services]]
 name = "web"
-paths = [ "/" ]
+paths = [ "/", "/_next/hmr" ]
 localPort = 22614
 
 [services.development]
@@ -17,7 +17,7 @@ run = "pnpm --filter @workspace/daftaro run dev"
 [services.production]
 build = [ "pnpm", "--filter", "@workspace/daftaro", "run", "build" ]
 serve = "static"
-publicDir = "artifacts/daftaro/dist/public"
+publicDir = "artifacts/daftaro/out"
 
 [[services.production.rewrites]]
 from = "/*"

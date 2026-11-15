@@ -1,44 +1,51 @@
-# [Project name]
+# Daftaro
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+Daftaro is a planned Arabic-first financial companion for small and home-based businesses in Kuwait and the Gulf.
 
 ## Run & Operate
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
+- `pnpm --filter @workspace/daftaro run dev` — run the landing page
+- `pnpm --filter @workspace/daftaro run typecheck` — check the Daftaro app
+- `pnpm --filter @workspace/daftaro run build` — build the static Next.js site
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+- Current landing page requires no external service credentials.
 
 ## Stack
 
 - pnpm workspaces, Node.js 24, TypeScript 5.9
-- API: Express 5
-- DB: PostgreSQL + Drizzle ORM
-- Validation: Zod (`zod/v4`), `drizzle-zod`
-- API codegen: Orval (from OpenAPI spec)
-- Build: esbuild (CJS bundle)
+- Daftaro: Next.js App Router, React, TypeScript, Tailwind CSS
+- The shared workspace includes an Express API server, PostgreSQL/Drizzle, and OpenAPI code generation; Daftaro does not use them in the landing-page phase.
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/daftaro/src/app/` — Next.js routes and metadata
+- `artifacts/daftaro/src/App.tsx` — Arabic/English landing page content and interactions
+- `artifacts/daftaro/src/index.css` — brand styling
+- `lib/api-spec/openapi.yaml` — shared API contract, when a later approved phase needs backend routes
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- Work in the numbered phases from the product brief; finish one phase, explain how to try it, and wait for the user's approval before starting the next.
+- The first phase is the landing page only. Do not add Supabase, a dashboard, authentication, OCR, or other internal features before approval.
+- Keep financial arithmetic deterministic in code; AI may explain verified results but must not invent figures or modify records.
+- Implement billing with Stripe Test Mode only until the user explicitly approves live payments and account eligibility is confirmed.
+- OCR is the final phase; compare providers and wait for approval before selecting one.
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+Daftaro is planned to help small businesses record revenue and expenses, understand product costs and profit, and make better financial decisions. The current delivered phase is a bilingual landing page; product features are not live yet.
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+- Explain API and service connection steps clearly when they arise.
+- Prefer free plans and subscriptions whenever available.
+- Use Arabic for guidance, with English technical terms where useful.
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- The Next.js site is statically exported for the artifact's production hosting; keep static export enabled unless hosting changes.
+- Do not present planned product features as currently available or show fabricated financial data as real.
 
 ## Pointers
 
