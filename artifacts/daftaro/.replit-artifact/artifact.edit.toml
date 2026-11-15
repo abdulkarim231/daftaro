@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Daftaro"
+description = "Arabic-first financial clarity for small businesses in Kuwait and the Gulf, helping owners understand revenue, expenses, and real profit."
+version = "1.0.0"
+id = "artifacts/daftaro"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/", "/_next/hmr" ]
+localPort = 22614
+
+[services.development]
+run = "pnpm --filter @workspace/daftaro run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/daftaro", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/daftaro/out"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "22614"
+BASE_PATH = "/"
