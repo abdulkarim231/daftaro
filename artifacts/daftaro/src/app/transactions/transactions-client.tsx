@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowDownLeft,
@@ -20,6 +20,12 @@ import {
   Trash2,
   X,
 } from "lucide-react";
+import { calculateFinancialSummaries } from "../../lib/financial-summary";
+import {
+  formatMarginHundredths,
+  formatMilliAmount,
+  parseAmountToMilli,
+} from "../../lib/money";
 import { supabase } from "../../lib/supabase";
 
 type Language = "ar" | "en";
@@ -54,6 +60,8 @@ type Draft = {
   description: string;
   category: Category | "";
 };
+
+const TRANSACTION_PAGE_SIZE = 500;
 
 const categoryOptions: { value: Category; ar: string; en: string }[] = [
   { value: "materials", ar: "مواد خام", en: "Materials" },
@@ -126,6 +134,17 @@ const copy = {
     signOut: "تسجيل الخروج",
     signingOut: "جارٍ تسجيل الخروج…",
     signOutError: "تعذر تسجيل الخروج. أعد المحاولة.",
+    summaryEyebrow: "الملخص المالي",
+    summaryTitle: "النتائج المالية",
+    summaryIntro: "إجمالي الإيرادات والمصروفات وصافي الربح من الحركات المسجلة.",
+    summaryEmpty: "لا توجد حركات مالية بعد.",
+    summaryUnavailable: "تعذر تحديث الملخص. أعد تحميل سجل المعاملات للمراجعة.",
+    summaryIncome: "إجمالي الإيرادات",
+    summaryExpenses: "إجمالي المصروفات",
+    summaryNet: "صافي الربح",
+    summaryMargin: "هامش الربح",
+    summaryMarginUnavailable: "غير متاح لعدم وجود إيرادات",
+    summaryCurrencyNote: "تُعرض كل عملة منفصلة دون تحويل بينها.",
   },
   en: {
     brand: "Daftaro",
@@ -186,6 +205,17 @@ const copy = {
     signOut: "Sign out",
     signingOut: "Signing out…",
     signOutError: "We couldn't sign you out. Please try again.",
+    summaryEyebrow: "FINANCIAL SUMMARY",
+    summaryTitle: "Financial results",
+    summaryIntro: "Total income, expenses, and net profit from recorded transactions.",
+    summaryEmpty: "No transactions have been recorded yet.",
+    summaryUnavailable: "The summary could not refresh. Reload your transaction ledger to review it.",
+    summaryIncome: "Total income",
+    summaryExpenses: "Total expenses",
+    summaryNet: "Net profit",
+    summaryMargin: "Profit margin",
+    summaryMarginUnavailable: "Unavailable because there is no income",
+    summaryCurrencyNote: "Each currency is shown separately, without conversion.",
   },
 } as const;
 
@@ -240,6 +270,10 @@ export default function TransactionsClient() {
 
   const rtl = language === "ar";
   const text = copy[language];
+  const financialSummaries = useMemo(
+    () => calculateFinancialSummaries(transactions, currency),
+    [transactions, currency],
+  );
 
   useEffect(() => {
     document.documentElement.lang = language;
@@ -249,17 +283,28 @@ export default function TransactionsClient() {
 
   const loadTransactions = useCallback(async (currentUserId: string) => {
     setLoadError(false);
-    const { data, error } = await supabase
-      .from("financial_transactions")
-      .select("id,user_id,transaction_type,amount,currency_code,transaction_date,description,category,created_at,updated_at")
-      .eq("user_id", currentUserId)
-      .order("transaction_date", { ascending: false })
-      .order("created_at", { ascending: false });
-    if (error) {
+    const allTransactions: Transaction[] = [];
+    try {
+      for (let offset = 0; ; offset += TRANSACTION_PAGE_SIZE) {
+        const { data, error } = await supabase
+          .from("financial_transactions")
+          .select("id,user_id,transaction_type,amount,currency_code,transaction_date,description,category,created_at,updated_at")
+          .eq("user_id", currentUserId)
+          .order("transaction_date", { ascending: false })
+          .order("created_at", { ascending: false })
+          .order("id", { ascending: true })
+          .range(offset, offset + TRANSACTION_PAGE_SIZE - 1);
+        if (error) throw error;
+
+        const page = (data ?? []) as Transaction[];
+        allTransactions.push(...page);
+        if (page.length < TRANSACTION_PAGE_SIZE) break;
+      }
+    } catch (error) {
       setLoadError(true);
       throw error;
     }
-    setTransactions((data ?? []) as Transaction[]);
+    setTransactions(allTransactions);
   }, []);
 
   const initialize = useCallback(async () => {
@@ -330,8 +375,9 @@ export default function TransactionsClient() {
     event.preventDefault();
     setFormError("");
     const amount = normalizeAmount(draft.amount);
+    const amountMilli = parseAmountToMilli(amount);
     const description = draft.description.trim();
-    if (!/^(?:\d+)(?:\.\d{1,3})?$/.test(amount) || Number(amount) <= 0 || Number(amount) > 99999999999.999) {
+    if (amountMilli === null || amountMilli <= 0n) {
       setFormError(text.validationAmount);
       return;
     }
@@ -426,10 +472,9 @@ export default function TransactionsClient() {
   }
 
   function amountLabel(amount: string | number, currencyCode: string) {
-    const formatted = new Intl.NumberFormat(rtl ? "ar-KW" : "en-KW", {
-      minimumFractionDigits: 3,
-      maximumFractionDigits: 3,
-    }).format(Number(amount));
+    const amountMilli = parseAmountToMilli(String(amount));
+    if (amountMilli === null) return <span dir="ltr">—</span>;
+    const formatted = formatMilliAmount(amountMilli, language);
     return <span dir="ltr" className="inline-flex items-baseline gap-1.5"><span>{formatted}</span><span className="text-[10px] font-semibold tracking-wide text-[#7a8795]">{currencyCode}</span></span>;
   }
 
@@ -517,6 +562,70 @@ export default function TransactionsClient() {
             {notice.message}
           </div>
         )}
+
+        <section aria-labelledby="financial-summary-title" className="mb-5 overflow-hidden rounded-[22px] border border-[#dfe7e1] bg-[#fffefa] shadow-[0_10px_34px_rgba(28,48,56,.04)]" data-testid="section-financial-summary">
+          <div className="flex flex-col gap-2 border-b border-[#edf0ed] px-5 py-4 sm:flex-row sm:items-end sm:justify-between sm:px-6">
+            <div>
+              <p className="mb-1 text-[9px] font-extrabold tracking-[.16em] text-[#a1864b]">{text.summaryEyebrow}</p>
+              <h2 id="financial-summary-title" className="text-base font-extrabold tracking-[-.025em] text-[#17283c]">{text.summaryTitle}</h2>
+              <p className="mt-1 text-[11px] leading-5 text-[#7d8992]">{text.summaryIntro}</p>
+            </div>
+            <p className="text-[10px] leading-5 text-[#8a959e]">{text.summaryCurrencyNote}</p>
+          </div>
+          {loading ? (
+            <div className="grid grid-cols-2 gap-3 p-4 sm:grid-cols-4 sm:p-5" role="status" aria-label={text.loading} data-testid="status-summary-loading">
+              {[0, 1, 2, 3].map((metric) => <div key={metric} className="h-[76px] animate-pulse rounded-[14px] bg-[#f0f2ed]" />)}
+            </div>
+          ) : loadError ? (
+            <p className="px-5 py-6 text-center text-xs font-medium leading-6 text-[#a34d43]" role="alert" data-testid="state-summary-error">{text.summaryUnavailable}</p>
+          ) : financialSummaries.length === 0 ? (
+            <p className="px-5 py-6 text-center text-xs font-medium leading-6 text-[#78858f]" data-testid="state-summary-empty">{text.summaryEmpty}</p>
+          ) : (
+            <div className="divide-y divide-[#edf0ed]">
+              {financialSummaries.map((summary) => (
+                <section key={summary.currency_code} className="px-4 py-4 sm:px-6 sm:py-5" data-testid={`summary-group-${summary.currency_code}`}>
+                  <div className="mb-3 flex items-center gap-2">
+                    <span className="h-px w-5 bg-[#d6b878]" />
+                    <h3 className="text-[11px] font-extrabold tracking-[.12em] text-[#526174]" data-testid={`summary-currency-${summary.currency_code}`}>
+                      {summary.currency_code}
+                      {summary.currency_code === currency && <span className="ms-2 rounded-full bg-[#e8f4ee] px-2 py-1 text-[9px] font-bold tracking-normal text-[#187966]">{rtl ? "الأساسية" : "Primary"}</span>}
+                    </h3>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4 sm:gap-3">
+                    <div className="min-w-0 rounded-[14px] bg-[#f5f7f3] px-3 py-3 sm:px-4">
+                      <p className="text-[10px] font-semibold leading-4 text-[#7e8a91]">{text.summaryIncome}</p>
+                      <p dir="ltr" className="mt-2 break-words text-start text-[clamp(.95rem,2vw,1.15rem)] font-extrabold tabular-nums tracking-[-.035em] text-[#197966]" data-testid={`summary-income-${summary.currency_code}`}>
+                        <span>{formatMilliAmount(summary.totalIncomeMilli, language)}</span><span className="ms-1.5 text-[9px] font-bold tracking-wide text-[#7a8795]">{summary.currency_code}</span>
+                      </p>
+                    </div>
+                    <div className="min-w-0 rounded-[14px] bg-[#f8f6f0] px-3 py-3 sm:px-4">
+                      <p className="text-[10px] font-semibold leading-4 text-[#7e8a91]">{text.summaryExpenses}</p>
+                      <p dir="ltr" className="mt-2 break-words text-start text-[clamp(.95rem,2vw,1.15rem)] font-extrabold tabular-nums tracking-[-.035em] text-[#927846]" data-testid={`summary-expenses-${summary.currency_code}`}>
+                        <span>{formatMilliAmount(summary.totalExpensesMilli, language)}</span><span className="ms-1.5 text-[9px] font-bold tracking-wide text-[#7a8795]">{summary.currency_code}</span>
+                      </p>
+                    </div>
+                    <div className={`min-w-0 rounded-[14px] px-3 py-3 sm:px-4 ${summary.netProfitMilli < 0n ? "bg-[#fff2ef]" : "bg-[#eaf5f0]"}`}>
+                      <p className="text-[10px] font-semibold leading-4 text-[#7e8a91]">{text.summaryNet}</p>
+                      <p dir="ltr" className={`mt-2 break-words text-start text-[clamp(.95rem,2vw,1.15rem)] font-extrabold tabular-nums tracking-[-.035em] ${summary.netProfitMilli < 0n ? "text-[#a34d43]" : "text-[#197966]"}`} data-testid={`summary-net-profit-${summary.currency_code}`}>
+                        <span>{formatMilliAmount(summary.netProfitMilli, language)}</span><span className="ms-1.5 text-[9px] font-bold tracking-wide text-[#7a8795]">{summary.currency_code}</span>
+                      </p>
+                    </div>
+                    <div className="min-w-0 rounded-[14px] border border-[#edf0ed] bg-[#fffefa] px-3 py-3 sm:px-4">
+                      <p className="text-[10px] font-semibold leading-4 text-[#7e8a91]">{text.summaryMargin}</p>
+                      {summary.profitMarginHundredths === null ? (
+                        <p className="mt-2 text-[10px] font-semibold leading-4 text-[#88939a]" data-testid={`summary-margin-${summary.currency_code}`}>{text.summaryMarginUnavailable}</p>
+                      ) : (
+                        <p dir="ltr" className="mt-2 text-start text-[clamp(.95rem,2vw,1.15rem)] font-extrabold tabular-nums tracking-[-.035em] text-[#34485a]" data-testid={`summary-margin-${summary.currency_code}`}>
+                          {formatMarginHundredths(summary.profitMarginHundredths, language)}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </section>
+              ))}
+            </div>
+          )}
+        </section>
 
         <section className="overflow-hidden rounded-[22px] border border-[#e1e7e4] bg-[#fffefa] shadow-[0_12px_42px_rgba(28,48,56,.045)]">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#edf0ed] px-5 py-4 sm:px-6">

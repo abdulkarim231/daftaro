@@ -8,7 +8,8 @@
     "build": "next build",
     "serve": "next start --hostname 0.0.0.0 --port $PORT",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test:money": "node --experimental-strip-types --test tests/money.test.mjs"
+    "test:money": "node --experimental-strip-types --test tests/money.test.mjs",
+    "test:finance": "node --experimental-strip-types --test tests/*.test.mjs"
   },
   "devDependencies": {
     "@hookform/resolvers": "^3.10.0",

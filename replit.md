@@ -8,6 +8,7 @@ Daftaro is a planned Arabic-first financial companion for small and home-based b
 - `pnpm --filter @workspace/daftaro run typecheck` — check the Daftaro app
 - `pnpm --filter @workspace/daftaro run build` — build the static Next.js site
 - `pnpm --filter @workspace/daftaro run test:money` — test exact product-cost arithmetic and formatting
+- `pnpm --filter @workspace/daftaro run test:finance` — test financial totals, margins, and money helpers
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run build` — typecheck + build all packages
 - The Supabase connection check uses `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, stored in Replit Secrets.
@@ -27,7 +28,8 @@ Daftaro is a planned Arabic-first financial companion for small and home-based b
 - `artifacts/daftaro/src/app/transactions/` — authenticated income and expense ledger
 - `artifacts/daftaro/src/app/products/` — authenticated product and per-unit cost management
 - `artifacts/daftaro/src/lib/money.ts` — exact thousandth-unit product cost, profit, and margin calculations
-- `artifacts/daftaro/tests/money.test.mjs` — regression checks for money parsing, calculations, and formatting
+- `artifacts/daftaro/src/lib/financial-summary.ts` — exact currency-separated transaction summaries
+- `artifacts/daftaro/tests/` — regression checks for exact financial calculations and formatting
 - `artifacts/daftaro/src/app/connection-test/` — temporary read-only Supabase connection check
 - `artifacts/daftaro/supabase/migrations/` — versioned Supabase schema changes
 - `lib/api-spec/openapi.yaml` — shared API contract, when a later approved phase needs backend routes
@@ -38,13 +40,13 @@ Daftaro is a planned Arabic-first financial companion for small and home-based b
 - The first phase is the landing page only. Do not add Supabase, a dashboard, authentication, OCR, or other internal features before approval.
 - Keep financial arithmetic deterministic in code; AI may explain verified results but must not invent figures or modify records.
 - Authentication uses Supabase email/password with PKCE. Keep email confirmation enabled; users must be redirected only to allow-listed callback URLs.
-- The auth completion page owns business-profile onboarding; `/transactions` owns income and expense records; `/products` owns product costs and per-unit profit/margin. Keep business-wide net profit, dashboards, and AI in their later approved phases.
+- The auth completion page owns business-profile onboarding; `/transactions` owns income/expense records and currency-separated net profit/margin; `/products` owns product costs and per-unit profit/margin. Keep charts, dashboard comparisons, and AI in their later approved phases.
 - Implement billing with Stripe Test Mode only until the user explicitly approves live payments and account eligibility is confirmed.
 - OCR is the final phase; compare providers and wait for approval before selecting one.
 
 ## Product
 
-Daftaro helps small businesses record revenue and expenses, understand product costs and profit, and make better financial decisions. The bilingual landing page, Supabase authentication, business-profile onboarding, income/expense ledger, and product-level unit costs and margins are implemented; business-wide profit calculations, dashboards, and AI are not live yet.
+Daftaro helps small businesses record revenue and expenses, understand product costs and profit, and make better financial decisions. The bilingual landing page, Supabase authentication, business-profile onboarding, income/expense ledger, product-level unit costs/margins, and currency-separated business net profit/margin are implemented; dashboards and AI are not live yet.
 
 ## User preferences
 
