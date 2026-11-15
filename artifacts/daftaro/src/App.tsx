@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from 'react';
 import {
   ArrowDownLeft, ArrowLeft, ArrowRight, ArrowUpLeft, Check, ChevronDown,
@@ -249,11 +250,11 @@ function App() {
             <button type="button" onClick={() => setLang(rtl ? 'en' : 'ar')} className="outline-ring rounded-lg px-2.5 py-2 text-[11px] font-bold text-[#59677c] transition hover:bg-white" aria-label={rtl ? 'Switch to English' : 'التبديل إلى العربية'} data-testid="button-language">
               {rtl ? 'EN' : 'عربي'}
             </button>
-            <a href="#idea" className="hidden rounded-full bg-[#101b30] px-5 py-2.5 text-[11px] font-bold text-white transition hover:bg-[#1b2c49] sm:inline-flex" data-testid="link-header-contact">{rtl ? 'عن دفترُك' : 'About Daftaro'}</a>
+            <Link href="/auth" className="hidden rounded-full bg-[#101b30] px-5 py-2.5 text-[11px] font-bold text-white transition hover:bg-[#1b2c49] sm:inline-flex" data-testid="link-header-auth">{rtl ? 'دخول' : 'Sign in'}</Link>
             <button type="button" aria-label={menuOpen ? (rtl ? 'إغلاق القائمة' : 'Close menu') : (rtl ? 'فتح القائمة' : 'Open menu')} aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)} className="outline-ring grid size-10 place-items-center rounded-xl border border-[#e2e7ed] text-[#101b30] lg:hidden" data-testid="button-menu">{menuOpen ? <X size={18} /> : <Menu size={18} />}</button>
           </div>
         </div>
-        {menuOpen && <nav className="grid gap-1 border-t border-[#e8ebef] bg-[#f5f7fa] px-5 py-3 lg:hidden">{t.nav.map((item, i) => <a key={item} href={`#${sectionIds[i]}`} onClick={() => setMenuOpen(false)} className="rounded-lg px-3 py-3 text-sm font-semibold text-[#59677c] hover:bg-white" data-testid={`link-mobile-nav-${i}`}>{item}</a>)}</nav>}
+        {menuOpen && <nav className="grid gap-1 border-t border-[#e8ebef] bg-[#f5f7fa] px-5 py-3 lg:hidden">{t.nav.map((item, i) => <a key={item} href={`#${sectionIds[i]}`} onClick={() => setMenuOpen(false)} className="rounded-lg px-3 py-3 text-sm font-semibold text-[#59677c] hover:bg-white" data-testid={`link-mobile-nav-${i}`}>{item}</a>)}<Link href="/auth" onClick={() => setMenuOpen(false)} className="rounded-lg px-3 py-3 text-sm font-semibold text-[#16a085]" data-testid="link-mobile-auth">{rtl ? 'تسجيل الدخول أو إنشاء حساب' : 'Sign in or create an account'}</Link></nav>}
       </header>
 
       <section id="top" className="relative mx-auto grid max-w-[1220px] items-center gap-14 px-5 pb-24 pt-16 sm:px-8 sm:pt-20 lg:min-h-[650px] lg:grid-cols-[1fr_1fr] lg:gap-16 lg:pb-28">

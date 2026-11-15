@@ -22,6 +22,7 @@ Daftaro is a planned Arabic-first financial companion for small and home-based b
 - `artifacts/daftaro/src/app/` — Next.js routes and metadata
 - `artifacts/daftaro/src/App.tsx` — Arabic/English landing page content and interactions
 - `artifacts/daftaro/src/index.css` — brand styling
+- `artifacts/daftaro/src/app/auth/` — Supabase email/password signup, sign-in, confirmation, and session check
 - `artifacts/daftaro/src/app/connection-test/` — temporary read-only Supabase connection check
 - `artifacts/daftaro/supabase/migrations/` — versioned Supabase schema changes
 - `lib/api-spec/openapi.yaml` — shared API contract, when a later approved phase needs backend routes
@@ -31,12 +32,14 @@ Daftaro is a planned Arabic-first financial companion for small and home-based b
 - Work in the numbered phases from the product brief; finish one phase, explain how to try it, and wait for the user's approval before starting the next.
 - The first phase is the landing page only. Do not add Supabase, a dashboard, authentication, OCR, or other internal features before approval.
 - Keep financial arithmetic deterministic in code; AI may explain verified results but must not invent figures or modify records.
+- Authentication uses Supabase email/password with PKCE. Keep email confirmation enabled; users must be redirected only to allow-listed callback URLs.
+- The auth completion page is only a session check; do not add business profile or dashboard features before their approved phases.
 - Implement billing with Stripe Test Mode only until the user explicitly approves live payments and account eligibility is confirmed.
 - OCR is the final phase; compare providers and wait for approval before selecting one.
 
 ## Product
 
-Daftaro is planned to help small businesses record revenue and expenses, understand product costs and profit, and make better financial decisions. The current delivered phase is a bilingual landing page; product features are not live yet.
+Daftaro is planned to help small businesses record revenue and expenses, understand product costs and profit, and make better financial decisions. The bilingual landing page and Supabase email/password authentication are implemented; financial records, business profiles, and dashboards are not live yet.
 
 ## User preferences
 
@@ -47,6 +50,7 @@ Daftaro is planned to help small businesses record revenue and expenses, underst
 ## Gotchas
 
 - The Next.js site is statically exported for the artifact's production hosting; keep static export enabled unless hosting changes.
+- Supabase Auth sign-up redirects to `/auth/callback`; add the current preview callback URL to Authentication > URL Configuration before testing email confirmation.
 - Do not present planned product features as currently available or show fabricated financial data as real.
 
 ## Pointers
