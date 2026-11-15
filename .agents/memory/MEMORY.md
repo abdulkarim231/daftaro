@@ -1,0 +1,1 @@
+- [GitHub access in Replit](github-shell-access.md) — when connector status stays pending, check authenticated `gh`; guarded Git edits may need explicit opt-in.
