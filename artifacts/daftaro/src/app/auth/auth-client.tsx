@@ -66,7 +66,8 @@ const text = {
 
 function getBasePath() {
   const path = window.location.pathname.replace(/\/+$/, "");
-  return path.endsWith("/auth") ? path.slice(0, -"/auth".length) : "";
+  const routeSuffix = path.endsWith("/auth/signup") ? "/auth/signup" : "/auth";
+  return path.endsWith(routeSuffix) ? path.slice(0, -routeSuffix.length) : "";
 }
 
 function friendlyError(error: unknown, language: Language) {
@@ -81,10 +82,9 @@ function friendlyError(error: unknown, language: Language) {
   return copy.genericError;
 }
 
-export default function AuthClient() {
+export default function AuthClient({ mode }: { mode: Mode }) {
   const router = useRouter();
   const [language, setLanguage] = useState<Language>("ar");
-  const [mode, setMode] = useState<Mode>("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -213,19 +213,16 @@ export default function AuthClient() {
 
             <div className="mt-7 grid grid-cols-2 rounded-xl bg-[#f3f5f7] p-1" role="tablist" aria-label={rtl ? "نوع العملية" : "Authentication method"}>
               {(["signin", "signup"] as const).map((option) => (
-                <button
+                <Link
                   key={option}
-                  type="button"
+                  href={option === "signup" ? "/auth/signup" : "/auth"}
                   role="tab"
                   aria-selected={mode === option}
-                  onClick={() => {
-                    setMode(option);
-                    setNotice(null);
-                  }}
-                  className={`rounded-lg px-3 py-3 text-sm font-bold transition ${mode === option ? "bg-white text-[#101b30] shadow-sm" : "text-[#7a8697] hover:text-[#101b30]"}`}
+                  aria-current={mode === option ? "page" : undefined}
+                  className={`cursor-pointer rounded-lg px-3 py-3 text-center text-sm font-bold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#16a085] ${mode === option ? "bg-white text-[#101b30] shadow-sm" : "text-[#4c5a6f] hover:bg-white/75 hover:text-[#101b30]"}`}
                 >
                   {copy[option]}
-                </button>
+                </Link>
               ))}
             </div>
 

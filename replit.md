@@ -22,7 +22,7 @@ Daftaro is a planned Arabic-first financial companion for small and home-based b
 - `artifacts/daftaro/src/app/` — Next.js routes and metadata
 - `artifacts/daftaro/src/App.tsx` — Arabic/English landing page content and interactions
 - `artifacts/daftaro/src/index.css` — brand styling
-- `artifacts/daftaro/src/app/auth/` — Supabase email/password signup, sign-in, confirmation, and session check
+- `artifacts/daftaro/src/app/auth/` — Supabase email/password signup (`/auth/signup`), sign-in, confirmation, and session check
 - `artifacts/daftaro/src/app/connection-test/` — temporary read-only Supabase connection check
 - `artifacts/daftaro/supabase/migrations/` — versioned Supabase schema changes
 - `lib/api-spec/openapi.yaml` — shared API contract, when a later approved phase needs backend routes
