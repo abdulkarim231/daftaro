@@ -204,15 +204,20 @@ export async function saveCustomer(input: CustomerInput): Promise<Customer> {
 
 export async function getOrderableProducts(currencyCode: string): Promise<BusinessProduct[]> {
   const userId = await requireCurrentUserId();
-  const { data, error } = await supabase
-    .from("business_products")
-    .select("id,user_id,name,selling_price,currency_code")
-    .eq("user_id", userId)
-    .eq("currency_code", currencyCode)
-    .order("name", { ascending: true })
-    .range(0, PAGE_SIZE - 1);
-  if (error) throw error;
-  return (data ?? []) as BusinessProduct[];
+  const rows: BusinessProduct[] = [];
+  for (let offset = 0; ; offset += PAGE_SIZE) {
+    const { data, error } = await supabase
+      .from("business_products")
+      .select("id,user_id,name,selling_price,currency_code")
+      .eq("user_id", userId)
+      .eq("currency_code", currencyCode)
+      .order("name", { ascending: true })
+      .range(offset, offset + PAGE_SIZE - 1);
+    if (error) throw error;
+    const page = (data ?? []) as BusinessProduct[];
+    rows.push(...page);
+    if (page.length < PAGE_SIZE) return rows;
+  }
 }
 
 export async function getOrders(): Promise<OrderSummary[]> {
@@ -237,17 +242,23 @@ export async function getOrders(): Promise<OrderSummary[]> {
 
 export async function getCustomerOrderHistory(customerId: string): Promise<OrderSummary[]> {
   const userId = await requireCurrentUserId();
-  const { data, error } = await supabase
-    .from("orders")
-    .select(
-      "id,user_id,order_number,customer_id,customer_name_snapshot,customer_phone_snapshot,order_date,order_status,payment_status,currency_code,subtotal,discount,shipping_fee,total,created_at,updated_at",
-    )
-    .eq("user_id", userId)
-    .eq("customer_id", customerId)
-    .order("order_date", { ascending: false })
-    .order("created_at", { ascending: false });
-  if (error) throw error;
-  return (data ?? []) as OrderSummary[];
+  const rows: OrderSummary[] = [];
+  for (let offset = 0; ; offset += PAGE_SIZE) {
+    const { data, error } = await supabase
+      .from("orders")
+      .select(
+        "id,user_id,order_number,customer_id,customer_name_snapshot,customer_phone_snapshot,order_date,order_status,payment_status,currency_code,subtotal,discount,shipping_fee,total,created_at,updated_at",
+      )
+      .eq("user_id", userId)
+      .eq("customer_id", customerId)
+      .order("order_date", { ascending: false })
+      .order("created_at", { ascending: false })
+      .range(offset, offset + PAGE_SIZE - 1);
+    if (error) throw error;
+    const page = (data ?? []) as OrderSummary[];
+    rows.push(...page);
+    if (page.length < PAGE_SIZE) return rows;
+  }
 }
 
 export async function getOrderDetails(orderId: string): Promise<OrderDetails | null> {
