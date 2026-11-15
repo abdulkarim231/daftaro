@@ -129,6 +129,7 @@ const copy = {
     noCategory: "—",
     amountPlaceholder: "0.000",
     back: "العودة",
+    dashboard: "لوحة التحكم",
     profile: "ملف النشاط",
     products: "المنتجات وتكاليفها",
     signOut: "تسجيل الخروج",
@@ -200,6 +201,7 @@ const copy = {
     noCategory: "—",
     amountPlaceholder: "0.000",
     back: "Back",
+    dashboard: "Dashboard",
     profile: "Business profile",
     products: "Products and costs",
     signOut: "Sign out",
@@ -496,6 +498,13 @@ export default function TransactionsClient() {
               <ShieldCheck size={14} className="text-[#168d78]" />
               {text.private}
             </span>
+            <Link
+              href="/dashboard"
+              className="outline-ring rounded-full border border-[#dfe5e7] bg-white px-3.5 py-2 text-xs font-bold text-[#526174] transition hover:border-[#d6b878]"
+              data-testid="link-dashboard"
+            >
+              {text.dashboard}
+            </Link>
             <Link
               href="/auth/complete"
               className="outline-ring rounded-full border border-[#dfe5e7] bg-white px-3.5 py-2 text-xs font-bold text-[#526174] transition hover:border-[#d6b878]"

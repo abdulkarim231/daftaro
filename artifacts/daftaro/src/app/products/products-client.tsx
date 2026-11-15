@@ -79,7 +79,7 @@ const copy = {
     validationName: "اكتب اسمًا من حرف واحد إلى ١٢٠ حرفًا.",
     validationPrice: "أدخل سعر بيع أكبر من صفر وبحد أقصى ثلاث خانات عشرية.",
     validationCost: "أدخل كل تكلفة كقيمة صفر أو أكثر وبحد أقصى ثلاث خانات عشرية.",
-    close: "إغلاق", profile: "ملف النشاط", ledger: "سجل الحركات", signOut: "تسجيل الخروج",
+    close: "إغلاق", profile: "ملف النشاط", ledger: "سجل الحركات", dashboard: "لوحة التحكم", signOut: "تسجيل الخروج",
     signingOut: "جارٍ تسجيل الخروج…", signOutError: "تعذر تسجيل الخروج. أعد المحاولة.",
     positive: "ربح", negative: "خسارة", language: "EN", noProducts: "لا توجد منتجات بعد",
     direction: "rtl",
@@ -107,7 +107,7 @@ const copy = {
     validationName: "Enter a name between 1 and 120 characters.",
     validationPrice: "Enter a selling price greater than zero with up to three decimal places.",
     validationCost: "Enter each cost as zero or more with up to three decimal places.",
-    close: "Close", profile: "Business profile", ledger: "Transactions", signOut: "Sign out",
+    close: "Close", profile: "Business profile", ledger: "Transactions", dashboard: "Dashboard", signOut: "Sign out",
     signingOut: "Signing out…", signOutError: "We couldn't sign you out. Please try again.",
     positive: "Profit", negative: "Loss", language: "عربي", noProducts: "No products yet",
     direction: "ltr",
@@ -355,6 +355,9 @@ export default function ProductsClient() {
             <span className="text-[19px] font-extrabold tracking-[-.045em] text-[#101b30]">{text.brand}</span>
           </div>
           <div className="flex items-center gap-2">
+            <Link href="/dashboard" aria-label={text.dashboard} className="outline-ring hidden rounded-full border border-[#dfe5e7] bg-white px-3.5 py-2 text-xs font-bold text-[#526174] transition hover:border-[#d6b878] sm:inline-flex" data-testid="link-dashboard">
+              {text.dashboard}
+            </Link>
             <Link href="/transactions" aria-label={text.ledger} className="outline-ring inline-flex items-center gap-1.5 rounded-full border border-[#dfe5e7] bg-white px-3 py-2 text-xs font-bold text-[#526174] transition hover:border-[#d6b878]" data-testid="link-transactions">
               <ReceiptText size={14} /><span className="hidden sm:inline">{text.ledger}</span>
             </Link>

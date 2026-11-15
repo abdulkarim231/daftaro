@@ -55,3 +55,22 @@ a { text-decoration: none; }
 .soft-shadow { box-shadow:0 24px 80px rgba(16,27,48,.11),0 2px 8px rgba(16,27,48,.04); }
 .outline-ring:focus-visible { outline:3px solid #16a08566; outline-offset:3px; }
 @media (prefers-reduced-motion: reduce) { *,*::before,*::after { scroll-behavior:auto!important; animation-duration:.01ms!important; animation-iteration-count:1!important; transition-duration:.01ms!important; } }
+
+@page { margin: .5in; }
+@media print {
+  body:has([data-testid="dashboard-page"]) { margin: .5in; background: #fff !important; }
+  [data-testid="dashboard-page"] {
+    min-height: auto !important;
+    background: #fff !important;
+    color: #101b30 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  [data-testid="dashboard-page"] section {
+    break-inside: avoid;
+    border-color: #e2e7ed !important;
+    background: #fff !important;
+    box-shadow: none !important;
+  }
+  [data-testid="recent-transactions-card"] .overflow-x-auto { overflow: visible !important; }
+}

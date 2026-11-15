@@ -60,7 +60,7 @@ const copy = {
     trust: "بيانات نشاطك خاصة بحسابك فقط.",
     section: "الملف التجاري",
     editHint: "يمكنك تحديث المعلومات وحفظ التعديلات في أي وقت.",
-    continueTransactions: "الانتقال إلى سجل المعاملات",
+    continueDashboard: "فتح لوحة التحكم",
   },
   en: {
     title: "Complete your business profile",
@@ -85,7 +85,7 @@ const copy = {
     trust: "Your business details are private to your account.",
     section: "Business profile",
     editHint: "You can update and save these details at any time.",
-    continueTransactions: "Open transaction ledger",
+    continueDashboard: "Open dashboard",
   },
 } as const;
 
@@ -343,11 +343,11 @@ export default function CompleteClient() {
                 </div>
                 {hasProfile && (
                   <Link
-                    href="/transactions"
-                    data-testid="link-transaction-ledger"
+                    href="/dashboard"
+                    data-testid="link-dashboard"
                     className="mt-5 inline-flex w-full items-center justify-center rounded-xl border border-[#d6b878] px-5 py-3.5 text-sm font-bold text-[#101b30] transition hover:bg-[#f6f2e8]"
                   >
-                    {text.continueTransactions}
+                    {text.continueDashboard}
                   </Link>
                 )}
               </>
