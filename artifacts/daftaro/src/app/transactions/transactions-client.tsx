@@ -132,6 +132,8 @@ const copy = {
     dashboard: "لوحة التحكم",
     profile: "ملف النشاط",
     products: "المنتجات وتكاليفها",
+    orders: "الطلبات",
+    customers: "العملاء",
     signOut: "تسجيل الخروج",
     signingOut: "جارٍ تسجيل الخروج…",
     signOutError: "تعذر تسجيل الخروج. أعد المحاولة.",
@@ -204,6 +206,8 @@ const copy = {
     dashboard: "Dashboard",
     profile: "Business profile",
     products: "Products and costs",
+    orders: "Orders",
+    customers: "Customers",
     signOut: "Sign out",
     signingOut: "Signing out…",
     signOutError: "We couldn't sign you out. Please try again.",
@@ -485,7 +489,7 @@ export default function TransactionsClient() {
   return (
     <main dir={rtl ? "rtl" : "ltr"} className="min-h-[100dvh] bg-[#f4f6f4] text-[#172639]">
       <header className="border-b border-[#e4e8e5] bg-[#f8f9f6]">
-        <div className="mx-auto flex min-h-[74px] max-w-[1240px] items-center justify-between gap-4 px-4 sm:px-7">
+        <div className="mx-auto flex min-h-[74px] max-w-[1240px] flex-wrap items-center justify-between gap-4 px-4 sm:px-7">
           <div className="flex items-center gap-3">
             <span className="relative grid size-10 place-items-center rounded-[13px] bg-[#101b30]">
               <span className="absolute inset-[5px] rounded-[9px] border border-[#d6b878]/70" />
@@ -493,7 +497,7 @@ export default function TransactionsClient() {
             </span>
             <span className="text-[19px] font-extrabold tracking-[-.045em] text-[#101b30]">{text.brand}</span>
           </div>
-          <div className="flex items-center gap-2.5">
+          <div className="flex flex-wrap items-center justify-end gap-2">
             <span className="hidden items-center gap-2 rounded-full border border-[#e1e6e3] bg-white/70 px-3 py-2 text-[11px] font-medium text-[#728091] sm:inline-flex">
               <ShieldCheck size={14} className="text-[#168d78]" />
               {text.private}
@@ -520,6 +524,12 @@ export default function TransactionsClient() {
             >
               <Package size={14} />
               <span className="hidden sm:inline">{text.products}</span>
+            </Link>
+            <Link href="/orders" aria-label={text.orders} className="outline-ring rounded-full border border-[#dfe5e7] bg-white px-3 py-2 text-xs font-bold text-[#526174] transition hover:border-[#d6b878]" data-testid="link-orders">
+              {text.orders}
+            </Link>
+            <Link href="/customers" aria-label={text.customers} className="outline-ring rounded-full border border-[#dfe5e7] bg-white px-3 py-2 text-xs font-bold text-[#526174] transition hover:border-[#d6b878]" data-testid="link-customers">
+              {text.customers}
             </Link>
             <button
               type="button"

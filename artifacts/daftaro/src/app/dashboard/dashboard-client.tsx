@@ -63,7 +63,7 @@ const COPY = {
   ar: {
     brand: "دفترُك", privacy: "بياناتك خاصة وآمنة", title: "صورة نشاطك المالية", source: "مصدر البيانات",
     subtitle: "نظرة واضحة على ما كسبته وما أنفقته، خطوة بخطوة.", profile: "ملف النشاط",
-    transactions: "الحركات", products: "المنتجات", signOut: "تسجيل الخروج", signingOut: "جارٍ الخروج…",
+    transactions: "الحركات", products: "المنتجات", orders: "الطلبات", customers: "العملاء", signOut: "تسجيل الخروج", signingOut: "جارٍ الخروج…",
     language: "EN", refresh: "تحديث", refreshed: "آخر تحديث", print: "حفظ كـ PDF",
     dark: "تبديل الوضع الداكن", range: "الفترة", currency: "العملة", custom: "فترة مخصصة",
     from: "من", to: "إلى", apply: "تطبيق الفترة", invalidDate: "تحقق من تاريخ البداية والنهاية.",
@@ -85,7 +85,7 @@ const COPY = {
   en: {
     brand: "Daftaro", privacy: "Private to your account", title: "Your business, at a glance", source: "Data source",
     subtitle: "A clear view of what came in and what went out.", profile: "Business profile",
-    transactions: "Transactions", products: "Products", signOut: "Sign out", signingOut: "Signing out…",
+    transactions: "Transactions", products: "Products", orders: "Orders", customers: "Customers", signOut: "Sign out", signingOut: "Signing out…",
     language: "العربية", refresh: "Refresh", refreshed: "Last refreshed", print: "Save as PDF",
     dark: "Toggle dark mode", range: "Period", currency: "Currency", custom: "Custom range",
     from: "From", to: "To", apply: "Apply period", invalidDate: "Check the start and end dates.",
@@ -416,6 +416,8 @@ export default function DashboardClient() {
           <nav className="print:hidden flex flex-wrap items-center gap-2" aria-label={rtl ? "التنقل" : "Navigation"}>
             <Link href="/transactions" className={`rounded-full border px-3 py-2 text-xs font-bold transition hover:border-[#d6b878] ${isDark ? "border-white/15 bg-white/5 text-[#d9dfeb]" : "border-[#dfe5e7] bg-white text-[#526174]"}`} data-testid="link-transactions">{text.transactions}</Link>
             <Link href="/products" className={`hidden rounded-full border px-3.5 py-2 text-xs font-bold transition hover:border-[#d6b878] sm:inline-flex ${isDark ? "border-white/15 bg-white/5 text-[#d9dfeb]" : "border-[#dfe5e7] bg-white text-[#526174]"}`} data-testid="link-products">{text.products}</Link>
+            <Link href="/orders" className={`rounded-full border px-3 py-2 text-xs font-bold transition hover:border-[#d6b878] ${isDark ? "border-white/15 bg-white/5 text-[#d9dfeb]" : "border-[#dfe5e7] bg-white text-[#526174]"}`} data-testid="link-orders">{text.orders}</Link>
+            <Link href="/customers" className={`rounded-full border px-3 py-2 text-xs font-bold transition hover:border-[#d6b878] ${isDark ? "border-white/15 bg-white/5 text-[#d9dfeb]" : "border-[#dfe5e7] bg-white text-[#526174]"}`} data-testid="link-customers">{text.customers}</Link>
             <Link href="/auth/complete" className={`hidden rounded-full border px-3.5 py-2 text-xs font-bold transition hover:border-[#d6b878] md:inline-flex ${isDark ? "border-white/15 bg-white/5 text-[#d9dfeb]" : "border-[#dfe5e7] bg-white text-[#526174]"}`} data-testid="link-business-profile">{text.profile}</Link>
             <button type="button" onClick={() => setLanguage(rtl ? "en" : "ar")} className={`rounded-full border px-3.5 py-2 text-xs font-bold transition ${isDark ? "border-white/15 bg-white/5 text-[#d9dfeb]" : "border-[#dfe5e7] bg-white text-[#526174]"}`} aria-label={rtl ? "Switch to English" : "التبديل إلى العربية"} data-testid="button-language">{text.language}</button>
             <button type="button" onClick={() => void signOut()} disabled={signingOut} aria-label={signingOut ? text.signingOut : text.signOut} className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-2 text-xs font-bold transition disabled:opacity-60 ${isDark ? "border-white/15 bg-white/5 text-[#d9dfeb]" : "border-[#dfe5e7] bg-white text-[#526174]"}`} data-testid="button-sign-out"><LogOut size={14} /><span className="hidden sm:inline">{signingOut ? text.signingOut : text.signOut}</span></button>
