@@ -12,6 +12,7 @@ import {
   CircleAlert,
   FilePlus2,
   LogOut,
+  Package,
   Pencil,
   Plus,
   ReceiptText,
@@ -121,6 +122,7 @@ const copy = {
     amountPlaceholder: "0.000",
     back: "العودة",
     profile: "ملف النشاط",
+    products: "المنتجات وتكاليفها",
     signOut: "تسجيل الخروج",
     signingOut: "جارٍ تسجيل الخروج…",
     signOutError: "تعذر تسجيل الخروج. أعد المحاولة.",
@@ -180,6 +182,7 @@ const copy = {
     amountPlaceholder: "0.000",
     back: "Back",
     profile: "Business profile",
+    products: "Products and costs",
     signOut: "Sign out",
     signingOut: "Signing out…",
     signOutError: "We couldn't sign you out. Please try again.",
@@ -454,6 +457,15 @@ export default function TransactionsClient() {
               data-testid="link-business-profile"
             >
               {text.profile}
+            </Link>
+            <Link
+              href="/products"
+              aria-label={text.products}
+              className="outline-ring inline-flex items-center gap-1.5 rounded-full border border-[#dfe5e7] bg-white px-3 py-2 text-xs font-bold text-[#526174] transition hover:border-[#d6b878]"
+              data-testid="link-products"
+            >
+              <Package size={14} />
+              <span className="hidden sm:inline">{text.products}</span>
             </Link>
             <button
               type="button"
