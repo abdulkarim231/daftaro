@@ -9,7 +9,7 @@ Daftaro is a planned Arabic-first financial companion for small and home-based b
 - `pnpm --filter @workspace/daftaro run build` — build the static Next.js site
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run build` — typecheck + build all packages
-- Current landing page requires no external service credentials.
+- The Supabase connection check uses `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, stored in Replit Secrets.
 
 ## Stack
 
@@ -22,6 +22,8 @@ Daftaro is a planned Arabic-first financial companion for small and home-based b
 - `artifacts/daftaro/src/app/` — Next.js routes and metadata
 - `artifacts/daftaro/src/App.tsx` — Arabic/English landing page content and interactions
 - `artifacts/daftaro/src/index.css` — brand styling
+- `artifacts/daftaro/src/app/connection-test/` — temporary read-only Supabase connection check
+- `artifacts/daftaro/supabase/migrations/` — versioned Supabase schema changes
 - `lib/api-spec/openapi.yaml` — shared API contract, when a later approved phase needs backend routes
 
 ## Architecture decisions
