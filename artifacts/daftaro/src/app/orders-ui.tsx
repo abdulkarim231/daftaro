@@ -17,8 +17,9 @@ import {
 import {
   formatMilliAmount, milliToDatabaseValue, normalizeMoneyInput, parseAmountToMilli,
 } from "../lib/money";
-import { isAppNavActive } from "../lib/navigation";
-import { useHydratedPathname } from "../lib/use-hydrated-pathname";
+import { AppHeader } from "../components/app-header";
+import { useAppLanguage } from "../hooks/use-app-language";
+import { supabase } from "../lib/supabase";
 
 type Lang = "ar" | "en";
 type Screen = "customers" | "orders" | "create-order" | "order-details" | "invoice";
@@ -56,6 +57,7 @@ const C = {
     print: "طباعة أو حفظ PDF", publicMissing: "تعذر العثور على الفاتورة أو أن الرابط غير صالح.",
     ownerInvoice: "معاينة الفاتورة", totalDue: "الإجمالي المستحق", tryAgain: "إعادة المحاولة",
     toOrders: "العودة إلى الطلبات", back: "رجوع", language: "EN", private: "بياناتك محفوظة بأمان",
+    signOutError: "تعذر تسجيل الخروج. أعد المحاولة.",
     dateFrom: "من تاريخ", dateTo: "إلى تاريخ", clear: "مسح", lineItems: "تفاصيل المنتجات",
   },
   en: {
@@ -90,6 +92,7 @@ const C = {
     print: "Print or save PDF", publicMissing: "Invoice not found, or this link is invalid.",
     ownerInvoice: "Invoice preview", totalDue: "Total due", tryAgain: "Try again",
     toOrders: "Back to orders", back: "Back", language: "العربية", private: "Your records stay private",
+    signOutError: "We couldn't sign you out. Please try again.",
     dateFrom: "From date", dateTo: "To date", clear: "Clear", lineItems: "Items",
   },
 } as const;
@@ -132,8 +135,7 @@ function labelFor(value: string, lang: Lang) {
 
 export default function OrdersUI({ screen }: { screen: Screen }) {
   const router = useRouter();
-  const pathname = useHydratedPathname();
-  const [lang, setLang] = useState<Lang>("ar");
+  const [lang, setLang] = useAppLanguage();
   const [params, setParams] = useState<{ id: string; token: string }>({ id: "", token: "" });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -155,18 +157,14 @@ export default function OrdersUI({ screen }: { screen: Screen }) {
   const [customerForm, setCustomerForm] = useState({ name: "", phone: "", email: "", notes: "" });
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [busy, setBusy] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
+  const [signOutError, setSignOutError] = useState(false);
   const [notice, setNotice] = useState("");
   const [formError, setFormError] = useState("");
   const [orderDraft, setOrderDraft] = useState({ customer_id: "", items: [{ product_id: "", quantity: 1 }], discount: "0", shipping_fee: "0", order_date: localDate(), order_status: "New" as OrderStatus, payment_status: "Unpaid" as PaymentStatus });
   const [statusDraft, setStatusDraft] = useState<{ order_status: OrderStatus; payment_status: PaymentStatus }>({ order_status: "New", payment_status: "Unpaid" });
   const t = C[lang];
   const rtl = lang === "ar";
-  const navLinkClass = (href: string) =>
-    `rounded-full border px-3 py-2 text-xs font-bold transition hover:border-[#d6b878] ${
-      isAppNavActive(pathname, href)
-        ? "border-[#167b70] bg-[#e8f3f0] text-[#12665e] ring-1 ring-[#167b70]/15"
-        : "border-[#dfe5e7] bg-white text-[#526174]"
-    }`;
 
   useEffect(() => {
     document.documentElement.lang = lang;
@@ -341,27 +339,35 @@ export default function OrdersUI({ screen }: { screen: Screen }) {
     } catch { setFormError(t.saveError); } finally { setBusy(false); }
   }
 
+  async function signOut() {
+    setSigningOut(true);
+    setSignOutError(false);
+    try {
+      const { error: authError } = await supabase.auth.signOut();
+      if (authError) throw authError;
+      router.replace("/auth");
+    } catch {
+      setSignOutError(true);
+      setSigningOut(false);
+    }
+  }
+
   const control = "w-full rounded-[13px] border border-[#dfe5e8] bg-[#fffefa] px-3.5 py-3 text-sm text-[#1d2c3d] outline-none transition placeholder:text-[#a3acb5] focus:border-[#168d78] focus:ring-4 focus:ring-[#168d78]/10";
   const panel = "rounded-[22px] border border-[#e1e7e4] bg-[#fffefa] shadow-[0_12px_42px_rgba(28,48,56,.045)]";
   const header = (
-    <header className="sticky top-0 z-40 border-b border-[#e3e8e5] bg-[#f8f9f6]/95 shadow-sm backdrop-blur">
-      <div className="mx-auto flex min-h-[72px] max-w-[1240px] flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-7">
-        <Link href="/orders" aria-label={t.brand} className="flex items-center gap-3" data-testid="link-daftaro-brand">
-          <span className="relative grid size-10 place-items-center rounded-[13px] bg-[#101b30]"><span className="absolute inset-[5px] rounded-[9px] border border-[#d6b878]/70" /><span className="relative text-xl font-semibold text-[#d6b878]">د</span></span>
-          <span className="text-[19px] font-extrabold tracking-[-.045em] text-[#101b30]">{t.brand}</span>
-        </Link>
-        <nav className="flex flex-wrap items-center gap-2" aria-label={rtl ? "التنقل" : "Navigation"}>
-          <Link href="/dashboard" aria-current={isAppNavActive(pathname, "/dashboard") ? "page" : undefined} className={navLinkClass("/dashboard")} data-testid="link-dashboard">{t.dashboard}</Link>
-          <Link href="/transactions" aria-current={isAppNavActive(pathname, "/transactions") ? "page" : undefined} className={navLinkClass("/transactions")} data-testid="link-transactions">{t.transactions}</Link>
-          <Link href="/products" aria-current={isAppNavActive(pathname, "/products") ? "page" : undefined} className={navLinkClass("/products")} data-testid="link-products">{t.products}</Link>
-          <Link href="/customers" aria-current={isAppNavActive(pathname, "/customers") ? "page" : undefined} className={navLinkClass("/customers")} data-testid="link-customers">{t.customers}</Link>
-          <Link href="/orders" aria-current={isAppNavActive(pathname, "/orders") ? "page" : undefined} className={navLinkClass("/orders")} data-testid="link-orders">{t.orders}</Link>
-          <button type="button" onClick={() => setLang(rtl ? "en" : "ar")} aria-label={rtl ? "Switch to English" : "التبديل إلى العربية"} className="rounded-full border border-[#dfe5e7] bg-white px-3.5 py-2 text-xs font-bold text-[#526174] transition hover:border-[#d6b878]" data-testid="button-language">{t.language}</button>
-        </nav>
-      </div>
-    </header>
+    <AppHeader
+      language={lang}
+      onLanguageChange={() => setLang(rtl ? "en" : "ar")}
+      onSignOut={() => void signOut()}
+      signingOut={signingOut}
+    />
   );
-  const shell = (children: ReactNode) => <main dir={rtl ? "rtl" : "ltr"} className="min-h-[100dvh] bg-[#f4f6f4] text-[#172639]">{header}<div className="mx-auto max-w-[1240px] px-4 pb-12 pt-7 sm:px-7 sm:pt-10">{children}</div></main>;
+  const signOutErrorLine = signOutError && (
+    <p role="alert" className="mx-auto mt-3 max-w-[1320px] px-4 text-sm text-[#a34d43] sm:px-7" data-testid="error-sign-out">
+      {t.signOutError}
+    </p>
+  );
+  const shell = (children: ReactNode) => <main dir={rtl ? "rtl" : "ltr"} className="min-h-[100dvh] bg-[#f4f6f4] text-[#172639]">{header}{signOutErrorLine}<div className="mx-auto max-w-[1240px] px-4 pb-12 pt-7 sm:px-7 sm:pt-10">{children}</div></main>;
   const noticeLine = notice && <div role="status" aria-live="polite" className="mb-4 flex items-center gap-2 rounded-xl border border-[#cde7df] bg-[#eaf6f1] px-4 py-3 text-sm text-[#197360]" data-testid="status-notice"><Check size={16} />{notice}</div>;
   const errorBlock = <div className={`${panel} p-7 text-center`} role="alert" data-testid="state-load-error"><CircleAlert className="mx-auto mb-3 text-[#a34d43]" /><p className="text-sm font-semibold text-[#a34d43]">{t.loadError}</p><button type="button" onClick={() => void load()} className="mt-4 rounded-xl bg-[#101b30] px-4 py-2.5 text-sm font-bold text-white" data-testid="button-retry">{t.retry}</button></div>;
   const loadingBlock = <div role="status" aria-label={t.loading} className={`${panel} space-y-3 p-5`} data-testid="state-loading">{[1,2,3].map((x) => <div key={x} className="h-14 animate-pulse rounded-xl bg-[#f0f2ed]" />)}</div>;
@@ -430,13 +436,26 @@ export default function OrdersUI({ screen }: { screen: Screen }) {
     </div>}
   </>);
 
-  return <InvoiceScreen lang={lang} setLang={setLang} loading={loading} error={error} data={invoiceData} isPublic={Boolean(params.token)} invoiceToken={invoiceToken} retry={() => void load()} />;
+  return <InvoiceScreen lang={lang} setLang={setLang} loading={loading} error={error} data={invoiceData} isPublic={Boolean(params.token)} invoiceToken={invoiceToken} retry={() => void load()} onSignOut={() => void signOut()} signingOut={signingOut} signOutError={signOutError} />;
 }
 
-function InvoiceScreen({ lang, setLang, loading, error, data, isPublic, invoiceToken, retry }: { lang: Lang; setLang: (lang: Lang) => void; loading: boolean; error: boolean; data: PublicInvoice | null; isPublic: boolean; invoiceToken: string; retry: () => void }) {
+function InvoiceScreen({ lang, setLang, loading, error, data, isPublic, invoiceToken, retry, onSignOut, signingOut, signOutError }: { lang: Lang; setLang: (lang: Lang) => void; loading: boolean; error: boolean; data: PublicInvoice | null; isPublic: boolean; invoiceToken: string; retry: () => void; onSignOut: () => void; signingOut: boolean; signOutError: boolean }) {
   const rtl = lang === "ar"; const t = C[lang];
   const [copied, setCopied] = useState(false);
   const control = "rounded-xl border border-[#dfe5e7] bg-white px-3.5 py-2.5 text-xs font-bold text-[#526174] transition hover:border-[#d6b878]";
+  const ownerHeader = !isPublic && (
+    <AppHeader
+      language={lang}
+      onLanguageChange={() => setLang(rtl ? "en" : "ar")}
+      onSignOut={onSignOut}
+      signingOut={signingOut}
+    />
+  );
+  const signOutErrorLine = !isPublic && signOutError && (
+    <p role="alert" className="mx-auto mt-3 max-w-[1320px] px-4 text-sm text-[#a34d43] sm:px-7" data-testid="error-sign-out">
+      {t.signOutError}
+    </p>
+  );
   const shareUrl = typeof window === "undefined"
     ? ""
     : isPublic
@@ -463,12 +482,38 @@ function InvoiceScreen({ lang, setLang, loading, error, data, isPublic, invoiceT
       window.setTimeout(()=>setCopied(false),2200);
     }
   }
-  if (loading) return <main dir={rtl?"rtl":"ltr"} className="min-h-[100dvh] bg-[#f4f6f4] px-4 py-8"><div className="mx-auto max-w-3xl space-y-4"><div className="h-10 w-48 animate-pulse rounded-xl bg-[#e6e9e4]"/><div className="h-[500px] animate-pulse rounded-[24px] bg-[#fffefa]"/></div></main>;
-  if (error) return <main dir={rtl?"rtl":"ltr"} className="grid min-h-[100dvh] place-items-center bg-[#f4f6f4] p-5"><div className="max-w-md rounded-[22px] border border-[#e1e7e4] bg-[#fffefa] p-8 text-center"><CircleAlert className="mx-auto mb-4 text-[#a34d43]"/><p className="text-sm text-[#a34d43]">{t.loadError}</p><button onClick={retry} className="mt-4 rounded-xl bg-[#101b30] px-4 py-2.5 text-sm font-bold text-white" aria-label={t.retry} data-testid="button-retry-invoice">{t.retry}</button></div></main>;
-  if (!data) return <main dir={rtl?"rtl":"ltr"} className="grid min-h-[100dvh] place-items-center bg-[#f4f6f4] p-5"><div className="max-w-md rounded-[22px] border border-[#e1e7e4] bg-[#fffefa] p-8 text-center" data-testid="state-invoice-not-found"><FileText className="mx-auto mb-4 text-[#9a8050]"/><h1 className="text-xl font-extrabold">{t.publicMissing}</h1><Link href={isPublic?"/":"/orders"} className="mt-5 inline-flex rounded-xl border border-[#dfe5e7] px-4 py-2.5 text-sm font-bold text-[#526174]" data-testid="link-invoice-back">{isPublic?t.back:t.toOrders}</Link></div></main>;
+  if (loading) return <main dir={rtl?"rtl":"ltr"} className="min-h-[100dvh] bg-[#f4f6f4]">
+    {ownerHeader}{signOutErrorLine}<div className="px-4 py-8"><div className="mx-auto max-w-3xl space-y-4"><div className="h-10 w-48 animate-pulse rounded-xl bg-[#e6e9e4]"/><div className="h-[500px] animate-pulse rounded-[24px] bg-[#fffefa]"/></div></div>
+  </main>;
+  if (error) return <main dir={rtl?"rtl":"ltr"} className="min-h-[100dvh] bg-[#f4f6f4]">
+    {ownerHeader}{signOutErrorLine}<div className="grid min-h-[calc(100dvh-72px)] place-items-center p-5"><div className="max-w-md rounded-[22px] border border-[#e1e7e4] bg-[#fffefa] p-8 text-center"><CircleAlert className="mx-auto mb-4 text-[#a34d43]"/><p className="text-sm text-[#a34d43]">{t.loadError}</p><button onClick={retry} className="mt-4 rounded-xl bg-[#101b30] px-4 py-2.5 text-sm font-bold text-white" aria-label={t.retry} data-testid="button-retry-invoice">{t.retry}</button></div></div>
+  </main>;
+  if (!data) return <main dir={rtl?"rtl":"ltr"} className="min-h-[100dvh] bg-[#f4f6f4]">
+    {ownerHeader}{signOutErrorLine}<div className="grid min-h-[calc(100dvh-72px)] place-items-center p-5"><div className="max-w-md rounded-[22px] border border-[#e1e7e4] bg-[#fffefa] p-8 text-center" data-testid="state-invoice-not-found"><FileText className="mx-auto mb-4 text-[#9a8050]"/><h1 className="text-xl font-extrabold">{t.publicMissing}</h1><Link href={isPublic?"/":"/orders"} className="mt-5 inline-flex rounded-xl border border-[#dfe5e7] px-4 py-2.5 text-sm font-bold text-[#526174]" data-testid="link-invoice-back">{isPublic?t.back:t.toOrders}</Link></div></div>
+  </main>;
   const shareText = `${t.invoiceTitle} ${data.invoice.invoice_number} — ${shareUrl}`;
   return <main dir={rtl?"rtl":"ltr"} className="min-h-[100dvh] bg-[#f4f6f4] text-[#172639]">
-    <header className="print:hidden sticky top-0 z-40 border-b border-[#e3e8e5] bg-[#f8f9f6]/95 shadow-sm backdrop-blur"><div className="mx-auto flex min-h-[68px] max-w-[960px] items-center justify-between gap-3 px-4 sm:px-7"><Link href={isPublic?"/":"/orders"} className="flex items-center gap-2.5" aria-label={t.brand} data-testid="link-invoice-brand"><span className="grid size-9 place-items-center rounded-xl bg-[#101b30] text-lg font-bold text-[#d6b878]">د</span><span className="font-extrabold text-[#101b30]">{t.brand}</span></Link><div className="flex gap-2">{!isPublic && <><button type="button" onClick={()=>window.open(`https://wa.me/?text=${encodeURIComponent(shareText)}`,"_blank","noopener,noreferrer")} aria-label={t.whatsapp} className={control} data-testid="button-invoice-whatsapp">{t.whatsapp}</button><button type="button" onClick={()=>void copyLink()} aria-label={t.copy} className={control} data-testid="button-copy-invoice-link"><Clipboard size={15}/><span className="ms-1.5">{copied?t.copied:t.copy}</span></button><button type="button" onClick={()=>window.print()} aria-label={t.print} className={control} data-testid="button-print-invoice"><Printer size={15}/><span className="ms-1.5 hidden sm:inline">{t.print}</span></button></>}<button type="button" onClick={()=>setLang(rtl?"en":"ar")} aria-label={rtl?"Switch to English":"التبديل إلى العربية"} className={control} data-testid="button-invoice-language">{t.language}</button></div></div></header>
+    {isPublic ? (
+      <header className="print:hidden sticky top-0 z-40 border-b border-[#e3e8e5] bg-[#f8f9f6]/95 shadow-sm backdrop-blur">
+        <div className="mx-auto flex min-h-[68px] max-w-[960px] items-center justify-between gap-3 px-4 sm:px-7">
+          <Link href="/" className="flex items-center gap-2.5" aria-label={t.brand} data-testid="link-invoice-brand">
+            <span className="grid size-9 place-items-center rounded-xl bg-[#101b30] text-lg font-bold text-[#d6b878]">د</span>
+            <span className="font-extrabold text-[#101b30]">{t.brand}</span>
+          </Link>
+          <button type="button" onClick={() => setLang(rtl ? "en" : "ar")} aria-label={rtl ? "Switch to English" : "التبديل إلى العربية"} className={control} data-testid="button-invoice-language">{t.language}</button>
+        </div>
+      </header>
+    ) : (
+      <>
+        {ownerHeader}
+        {signOutErrorLine}
+        <div className="print:hidden mx-auto flex max-w-[1320px] flex-wrap justify-end gap-2 px-4 py-3 sm:px-7">
+          <button type="button" onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(shareText)}`, "_blank", "noopener,noreferrer")} aria-label={t.whatsapp} className={control} data-testid="button-invoice-whatsapp">{t.whatsapp}</button>
+          <button type="button" onClick={() => void copyLink()} aria-label={t.copy} className={control} data-testid="button-copy-invoice-link"><Clipboard size={15}/><span className="ms-1.5">{copied ? t.copied : t.copy}</span></button>
+          <button type="button" onClick={() => window.print()} aria-label={t.print} className={control} data-testid="button-print-invoice"><Printer size={15}/><span className="ms-1.5 hidden sm:inline">{t.print}</span></button>
+        </div>
+      </>
+    )}
     <div className="mx-auto max-w-[960px] px-4 py-6 sm:px-7 sm:py-10">
       <div className="mb-5 flex items-center justify-between"><p className="text-[10px] font-extrabold tracking-[.17em] text-[#927a46]">{isPublic?t.publicInvoice:t.ownerInvoice}</p>{!isPublic && <Link href="/orders" className="text-xs font-bold text-[#647184] hover:text-[#167b70]" data-testid="link-invoice-back-orders">{t.toOrders}</Link>}</div>
       <article className="overflow-hidden rounded-[22px] border border-[#e1e7e4] bg-[#fffefa] shadow-[0_16px_50px_rgba(28,48,56,.06)] print:rounded-none print:border-0 print:shadow-none" data-testid="invoice-document">

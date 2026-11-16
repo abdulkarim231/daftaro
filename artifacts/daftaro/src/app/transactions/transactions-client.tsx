@@ -11,8 +11,6 @@ import {
   ChevronDown,
   CircleAlert,
   FilePlus2,
-  LogOut,
-  Package,
   Pencil,
   Plus,
   ReceiptText,
@@ -26,8 +24,8 @@ import {
   formatMilliAmount,
   parseAmountToMilli,
 } from "../../lib/money";
-import { isAppNavActive } from "../../lib/navigation";
-import { useHydratedPathname } from "../../lib/use-hydrated-pathname";
+import { AppHeader } from "../../components/app-header";
+import { useAppLanguage } from "../../hooks/use-app-language";
 import { supabase } from "../../lib/supabase";
 
 type Language = "ar" | "en";
@@ -254,8 +252,7 @@ function formatDate(value: string, language: Language) {
 
 export default function TransactionsClient() {
   const router = useRouter();
-  const pathname = useHydratedPathname();
-  const [language, setLanguage] = useState<Language>("ar");
+  const [language, setLanguage] = useAppLanguage();
   const [userId, setUserId] = useState<string | null>(null);
   const [currency, setCurrency] = useState("KWD");
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -488,84 +485,15 @@ export default function TransactionsClient() {
   }
 
   const controlClass = "w-full rounded-[13px] border border-[#dfe5e8] bg-[#fffefa] px-4 py-3 text-sm text-[#1d2c3d] outline-none transition placeholder:text-[#a3acb5] focus:border-[#168d78] focus:ring-4 focus:ring-[#168d78]/10";
-  const navLinkClass = (href: string) =>
-    `outline-ring rounded-full border px-3.5 py-2 text-xs font-bold transition hover:border-[#d6b878] ${
-      isAppNavActive(pathname, href)
-        ? "border-[#167b70] bg-[#e8f3f0] text-[#12665e] ring-1 ring-[#167b70]/15"
-        : "border-[#dfe5e7] bg-white text-[#526174]"
-    }`;
 
   return (
     <main dir={rtl ? "rtl" : "ltr"} className="min-h-[100dvh] bg-[#f4f6f4] text-[#172639]">
-      <header className="sticky top-0 z-40 border-b border-[#e4e8e5] bg-[#f8f9f6]/95 shadow-sm backdrop-blur">
-        <div className="mx-auto flex min-h-[74px] max-w-[1240px] flex-wrap items-center justify-between gap-4 px-4 sm:px-7">
-          <div className="flex items-center gap-3">
-            <span className="relative grid size-10 place-items-center rounded-[13px] bg-[#101b30]">
-              <span className="absolute inset-[5px] rounded-[9px] border border-[#d6b878]/70" />
-              <span className="relative text-xl font-semibold text-[#d6b878]">د</span>
-            </span>
-            <span className="text-[19px] font-extrabold tracking-[-.045em] text-[#101b30]">{text.brand}</span>
-          </div>
-          <div className="flex flex-wrap items-center justify-end gap-2">
-            <span className="hidden items-center gap-2 rounded-full border border-[#e1e6e3] bg-white/70 px-3 py-2 text-[11px] font-medium text-[#728091] sm:inline-flex">
-              <ShieldCheck size={14} className="text-[#168d78]" />
-              {text.private}
-            </span>
-            <Link
-              href="/dashboard"
-              aria-current={isAppNavActive(pathname, "/dashboard") ? "page" : undefined}
-              className={navLinkClass("/dashboard")}
-              data-testid="link-dashboard"
-            >
-              {text.dashboard}
-            </Link>
-            <Link
-              href="/auth/complete"
-              aria-current={isAppNavActive(pathname, "/auth/complete") ? "page" : undefined}
-              className={navLinkClass("/auth/complete")}
-              data-testid="link-business-profile"
-            >
-              {text.profile}
-            </Link>
-            <Link
-              href="/products"
-              aria-label={text.products}
-              aria-current={isAppNavActive(pathname, "/products") ? "page" : undefined}
-              className={`inline-flex items-center gap-1.5 ${navLinkClass("/products")}`}
-              data-testid="link-products"
-            >
-              <Package size={14} />
-              <span className="hidden sm:inline">{text.products}</span>
-            </Link>
-            <Link href="/transactions" aria-current={isAppNavActive(pathname, "/transactions") ? "page" : undefined} aria-label={text.title} className={navLinkClass("/transactions")} data-testid="link-transactions">{text.title}</Link>
-            <Link href="/orders" aria-current={isAppNavActive(pathname, "/orders") ? "page" : undefined} aria-label={text.orders} className={navLinkClass("/orders")} data-testid="link-orders">
-              {text.orders}
-            </Link>
-            <Link href="/customers" aria-current={isAppNavActive(pathname, "/customers") ? "page" : undefined} aria-label={text.customers} className={navLinkClass("/customers")} data-testid="link-customers">
-              {text.customers}
-            </Link>
-            <button
-              type="button"
-              onClick={() => setLanguage(rtl ? "en" : "ar")}
-              className="outline-ring rounded-full border border-[#dfe5e7] bg-white px-3.5 py-2 text-xs font-bold text-[#526174] transition hover:border-[#d6b878]"
-              aria-label={rtl ? "Switch to English" : "التبديل إلى العربية"}
-              data-testid="button-language"
-            >
-              {text.language}
-            </button>
-            <button
-              type="button"
-              onClick={() => void signOut()}
-              disabled={signingOut}
-              className="outline-ring inline-flex items-center gap-1.5 rounded-full border border-[#dfe5e7] bg-white px-3 py-2 text-xs font-bold text-[#526174] transition hover:border-[#d6b878] disabled:opacity-60"
-              data-testid="button-sign-out"
-            >
-              <LogOut size={14} />
-              <span>{signingOut ? text.signingOut : text.signOut}</span>
-            </button>
-          </div>
-        </div>
-      </header>
+      <AppHeader
+        language={language}
+        onLanguageChange={() => setLanguage(rtl ? "en" : "ar")}
+        onSignOut={() => void signOut()}
+        signingOut={signingOut}
+      />
 
       <div className="mx-auto max-w-[1240px] px-4 pb-12 pt-7 sm:px-7 sm:pt-10">
         <div className="mb-7 flex flex-col justify-between gap-5 sm:flex-row sm:items-end">

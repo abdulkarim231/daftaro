@@ -3,8 +3,10 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { Building2, Check, LogOut, Save, ShieldCheck } from "lucide-react";
+import { Building2, Check, Save, ShieldCheck } from "lucide-react";
 import { supabase } from "../../../lib/supabase";
+import { AppHeader } from "../../../components/app-header";
+import { useAppLanguage } from "../../../hooks/use-app-language";
 
 type Language = "ar" | "en";
 type Profile = {
@@ -91,7 +93,7 @@ const copy = {
 
 export default function CompleteClient() {
   const router = useRouter();
-  const [language, setLanguage] = useState<Language>("ar");
+  const [language, setLanguage] = useAppLanguage();
   const [email, setEmail] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [businessName, setBusinessName] = useState("");
@@ -203,37 +205,15 @@ export default function CompleteClient() {
   }
 
   return (
-    <main dir={rtl ? "rtl" : "ltr"} className="min-h-[100dvh] bg-[#f5f7fa] px-4 py-6 text-[#101b30] sm:px-8 sm:py-10">
-      <div className="mx-auto max-w-5xl">
-        <header className="flex flex-wrap items-center justify-between gap-4">
-          <Link href="/" className="flex items-center gap-3 text-[#101b30]">
-            <span className="relative grid size-10 place-items-center rounded-xl bg-[#101b30]">
-              <span className="absolute inset-[5px] rounded-[8px] border border-[#d6b878]/70" />
-              <span className="relative text-xl font-semibold text-[#d6b878]">د</span>
-            </span>
-            <span className="text-xl font-extrabold tracking-[-.04em]">Daftaro</span>
-          </Link>
-          <div className="flex items-center gap-2 sm:gap-3">
-            {email && <span className="hidden max-w-48 truncate text-xs text-[#68758a] sm:inline" dir="ltr">{email}</span>}
-            <button
-              type="button"
-              onClick={() => setLanguage(rtl ? "en" : "ar")}
-              className="rounded-full border border-[#d9dfe6] bg-white px-3.5 py-2 text-xs font-bold text-[#59677c] transition hover:border-[#d6b878]"
-              aria-label={rtl ? "Switch to English" : "التبديل إلى العربية"}
-            >
-              {text.language}
-            </button>
-            <button
-              type="button"
-              onClick={signOut}
-              disabled={signingOut}
-              className="inline-flex items-center gap-2 rounded-xl bg-[#101b30] px-3.5 py-2.5 text-xs font-bold text-white transition hover:bg-[#1b2c49] disabled:opacity-60 sm:px-4"
-            >
-              <LogOut size={15} />
-              <span>{signingOut ? text.signingOut : text.signOut}</span>
-            </button>
-          </div>
-        </header>
+    <main dir={rtl ? "rtl" : "ltr"} className="min-h-[100dvh] bg-[#f5f7fa] text-[#101b30]">
+      <AppHeader
+        language={language}
+        onLanguageChange={() => setLanguage(rtl ? "en" : "ar")}
+        onSignOut={() => void signOut()}
+        signingOut={signingOut}
+      />
+      <div className="mx-auto max-w-5xl px-4 py-6 sm:px-8 sm:py-10">
+        {email && <p className="mb-4 text-end text-xs text-[#68758a]" dir="ltr">{email}</p>}
 
         <section className="mx-auto mt-8 max-w-2xl overflow-hidden rounded-[28px] border border-[#e4e9ee] bg-white shadow-[0_24px_80px_rgba(16,27,48,.09)] sm:mt-12">
           <div className="bg-[#101b30] px-6 py-7 text-white sm:px-10 sm:py-9">
