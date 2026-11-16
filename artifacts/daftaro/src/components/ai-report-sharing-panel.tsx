@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Check, Clipboard, Link2, LoaderCircle, ShieldCheck, X } from "lucide-react";
 import {
   createAiReportShare,
@@ -37,6 +37,7 @@ const COPY = {
     loadError: "تعذر تحميل روابط التقارير.",
     createError: "تعذر إنشاء رابط التقرير.",
     revokeError: "تعذر إلغاء الرابط.",
+    manualCopy: "تم تحديد الرابط. انسخيه يدويًا من الحقل.",
     period: "الفترة",
     currency: "العملة",
     expires: "ينتهي",
@@ -65,6 +66,7 @@ const COPY = {
     loadError: "Report links could not be loaded.",
     createError: "The report link could not be created.",
     revokeError: "The link could not be revoked.",
+    manualCopy: "The link is selected. Copy it from the field.",
     period: "Period",
     currency: "Currency",
     expires: "Expires",
@@ -97,6 +99,7 @@ export function AiReportSharingPanel({
   const [notice, setNotice] = useState("");
   const [latestLink, setLatestLink] = useState("");
   const [copied, setCopied] = useState(false);
+  const linkInputRef = useRef<HTMLInputElement>(null);
 
   async function refreshShares() {
     setLoading(true);
@@ -146,11 +149,28 @@ export function AiReportSharingPanel({
   }
 
   async function copyLink() {
+    setError("");
     try {
       await navigator.clipboard.writeText(latestLink);
       setCopied(true);
+      return;
     } catch {
-      setError(language === "ar" ? "تعذر النسخ تلقائيًا. حددي الرابط وانسخيه يدويًا." : "Copy was blocked. Select the link and copy it manually.");
+      const input = linkInputRef.current;
+      input?.focus();
+      input?.select();
+      input?.setSelectionRange(0, input.value.length);
+
+      try {
+        if (document.execCommand("copy")) {
+          setCopied(true);
+          return;
+        }
+      } catch {
+        // Keep the link selected so the user can copy it manually.
+      }
+
+      setCopied(false);
+      setError(copy.manualCopy);
     }
   }
 
@@ -219,6 +239,7 @@ export function AiReportSharingPanel({
         <p className="mt-1 text-[11px] leading-5 text-[#536273]">{copy.oneTime}</p>
         <div className="mt-2 flex gap-2">
           <input
+            ref={linkInputRef}
             aria-label={copy.copy}
             readOnly
             value={latestLink}
