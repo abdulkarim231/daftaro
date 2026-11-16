@@ -2,6 +2,10 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
 
+@theme {
+  --font-display: 'Manrope', 'IBM Plex Sans Arabic', sans-serif;
+}
+
 :root {
   --navy: #101b30;
   --gold: #d6b878;
@@ -40,6 +44,31 @@ button, a { -webkit-tap-highlight-color: transparent; }
 a { text-decoration: none; }
 ::selection { background: #d6b87866; color: var(--navy); }
 .arabic { font-family: 'IBM Plex Sans Arabic','Manrope',sans-serif; }
+.invoice-workspace { animation: invoice-enter .42s cubic-bezier(.2,.75,.25,1) both; }
+.invoice-masthead { box-shadow: 0 16px 44px rgba(30,52,47,.045); }
+.invoice-masthead-mark { transform: rotate(-9deg); }
+.invoice-panel { box-shadow: 0 14px 44px rgba(28,42,54,.045); }
+.invoice-dropzone { transition: border-color .2s ease, background-color .2s ease, transform .2s ease; }
+.invoice-dropzone:hover { border-color: #95b6a5; }
+.invoice-line-card { transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease; }
+.invoice-line-card:focus-within { border-color: #9abdae; box-shadow: 0 0 0 3px rgba(22,123,112,.08); }
+.invoice-fields label > input:focus-visible,
+.invoice-fields label > select:focus-visible,
+.invoice-line-card input:focus-visible,
+.invoice-line-card select:focus-visible,
+.invoice-workspace button:focus-visible,
+.invoice-confirm-dialog button:focus-visible,
+.invoice-workspace summary:focus-visible { outline: 3px solid rgba(22,123,112,.32); outline-offset: 2px; }
+.invoice-step-rail { box-shadow: 0 5px 18px rgba(28,42,54,.025); }
+.invoice-review-heading { box-shadow: inset 3px 0 0 #167b70; }
+.invoice-confirm-dialog { box-shadow: 0 28px 100px rgba(14,27,39,.3); animation: invoice-enter .2s ease-out both; }
+.invoice-empty-state { border-radius: 18px; }
+@keyframes invoice-enter { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@media (max-width: 640px) {
+  .invoice-masthead-mark { inset-inline-end: -2.5rem; font-size: 170px; }
+  .invoice-review-heading { align-items: stretch; }
+  .invoice-review-heading > div:nth-child(2) { min-width: 100%; align-items: flex-start; }
+}
 .page-grain::after { content:''; position:fixed; inset:0; z-index:20; pointer-events:none; opacity:.13; background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.12'/%3E%3C/svg%3E"); }
 .reveal { animation: rise-in .75s cubic-bezier(.2,.75,.25,1) both; }
 .reveal-delay-1 { animation-delay:.12s; }

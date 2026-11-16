@@ -42,3 +42,129 @@ export const DeactivateInvoicePaymentLinkBody = zod.object({
 export const DeactivateInvoicePaymentLinkResponse = zod.object({
   "status": zod.enum(['deactivated', 'already_inactive'])
 })
+
+
+/**
+ * @summary Check invoice scanning setup
+ */
+export const GetInvoiceScannerStatusResponse = zod.object({
+  "ocrConfigured": zod.boolean(),
+  "aiParserConfigured": zod.boolean()
+})
+
+
+/**
+ * Sends the file to OCR.Space and returns temporary text and editable extracted fields. The original file is not stored.
+ * @summary Read an invoice image or PDF
+ */
+export const scanInvoiceFileHeaderXFileNameMax = 180;
+
+
+
+export const ScanInvoiceFileHeader = zod.object({
+  "X-OCR-Engine": zod.union([zod.literal(2),zod.literal(3)]),
+  "X-File-Name": zod.string().max(scanInvoiceFileHeaderXFileNameMax).optional()
+})
+
+export const scanInvoiceFileResponsePageCountMax = 3;
+
+
+
+export const ScanInvoiceFileResponse = zod.object({
+  "invoice": zod.union([zod.object({
+  "invoiceNumber": zod.string().nullable(),
+  "invoiceDate": zod.string().nullable(),
+  "supplierName": zod.string().nullable(),
+  "supplierPhone": zod.string().nullable(),
+  "supplierEmail": zod.string().nullable(),
+  "currencyCode": zod.string().nullable(),
+  "subtotal": zod.string().nullable(),
+  "discount": zod.string().nullable(),
+  "tax": zod.string().nullable(),
+  "shippingFee": zod.string().nullable(),
+  "otherCharges": zod.string().nullable(),
+  "total": zod.string().nullable(),
+  "items": zod.array(zod.object({
+  "productName": zod.string(),
+  "description": zod.string(),
+  "sku": zod.string(),
+  "quantity": zod.string().nullable(),
+  "unitOfMeasure": zod.string(),
+  "unitPurchasePrice": zod.string().nullable(),
+  "lineTotal": zod.string().nullable(),
+  "discount": zod.string().nullable(),
+  "confidence": zod.enum(['high', 'medium', 'low', 'missing'])
+})),
+  "warnings": zod.array(zod.string())
+}),zod.null()]),
+  "extractedText": zod.string(),
+  "engine": zod.union([zod.literal(2),zod.literal(3)]),
+  "pageCount": zod.number().int().min(1).max(scanInvoiceFileResponsePageCountMax),
+  "parseWarning": zod.string().nullable()
+})
+
+
+/**
+ * Saves invoice history and applies confirmed inventory changes atomically for the authenticated owner.
+ * @summary Save a reviewed purchase invoice
+ */
+export const savePurchaseInvoiceBodyInvoiceNumberMax = 100;
+
+export const savePurchaseInvoiceBodySupplierNameMax = 160;
+
+export const savePurchaseInvoiceBodySupplierPhoneMax = 40;
+
+export const savePurchaseInvoiceBodySupplierEmailMax = 254;
+
+export const savePurchaseInvoiceBodyItemsItemProductNameMax = 160;
+
+export const savePurchaseInvoiceBodyItemsItemDescriptionMax = 500;
+
+export const savePurchaseInvoiceBodyItemsItemSkuMax = 100;
+
+export const savePurchaseInvoiceBodyItemsItemUnitOfMeasureMax = 32;
+
+export const savePurchaseInvoiceBodyItemsMax = 100;
+
+
+
+export const SavePurchaseInvoiceBody = zod.object({
+  "invoiceNumber": zod.string().max(savePurchaseInvoiceBodyInvoiceNumberMax),
+  "invoiceDate": zod.coerce.date(),
+  "supplierName": zod.string().max(savePurchaseInvoiceBodySupplierNameMax),
+  "supplierPhone": zod.string().max(savePurchaseInvoiceBodySupplierPhoneMax),
+  "supplierEmail": zod.string().max(savePurchaseInvoiceBodySupplierEmailMax),
+  "currencyCode": zod.enum(['KWD', 'SAR', 'AED', 'BHD', 'QAR', 'OMR', 'USD']),
+  "subtotal": zod.string(),
+  "discount": zod.string(),
+  "tax": zod.string(),
+  "shippingFee": zod.string(),
+  "otherCharges": zod.string(),
+  "total": zod.string(),
+  "ocrEngine": zod.union([zod.literal(0),zod.literal(2),zod.literal(3)]),
+  "items": zod.array(zod.object({
+  "productName": zod.string().min(1).max(savePurchaseInvoiceBodyItemsItemProductNameMax),
+  "description": zod.string().max(savePurchaseInvoiceBodyItemsItemDescriptionMax),
+  "sku": zod.string().max(savePurchaseInvoiceBodyItemsItemSkuMax),
+  "quantity": zod.string(),
+  "unitOfMeasure": zod.string().max(savePurchaseInvoiceBodyItemsItemUnitOfMeasureMax),
+  "unitPurchasePrice": zod.string(),
+  "lineTotal": zod.string(),
+  "discount": zod.string(),
+  "confidence": zod.enum(['high', 'medium', 'low', 'missing']),
+  "action": zod.enum(['match', 'create', 'skip']),
+  "productId": zod.string().uuid().nullable(),
+  "sellingPrice": zod.string(),
+  "updateMaterialsCost": zod.boolean()
+})).min(1).max(savePurchaseInvoiceBodyItemsMax)
+})
+
+export const SavePurchaseInvoiceResponse = zod.object({
+  "invoiceId": zod.string().uuid(),
+  "invoiceNumber": zod.string().nullable(),
+  "itemsCount": zod.number().int(),
+  "stockUpdatedCount": zod.number().int(),
+  "createdProductCount": zod.number().int()
+})
+
+

@@ -20,6 +20,7 @@ const labels = {
     brand: "دفترُك",
     privacy: "بياناتك خاصة وآمنة",
     transactions: "الحركات",
+    invoiceScanner: "قراءة الفواتير",
     products: "المنتجات",
     orders: "الطلبات",
     customers: "العملاء",
@@ -35,6 +36,7 @@ const labels = {
     brand: "Daftaro",
     privacy: "Private to your account",
     transactions: "Transactions",
+    invoiceScanner: "Invoice reader",
     products: "Products",
     orders: "Orders",
     customers: "Customers",
@@ -115,6 +117,7 @@ export function AppHeader({
         <div className="flex flex-wrap items-center justify-end gap-2">
           <nav className="flex flex-wrap items-center gap-2" aria-label={text.navigation}>
             <Link href="/transactions" aria-current={isAppNavActive(pathname, "/transactions") ? "page" : undefined} className={linkClass("/transactions")} data-testid="link-transactions">{text.transactions}</Link>
+            <Link href="/invoice-scanner" aria-current={isAppNavActive(pathname, "/invoice-scanner") ? "page" : undefined} className={linkClass("/invoice-scanner")} data-testid="link-invoice-scanner">{text.invoiceScanner}</Link>
             <Link href="/products" aria-current={isAppNavActive(pathname, "/products") ? "page" : undefined} className={linkClass("/products")} data-testid="link-products">{text.products}</Link>
             <Link href="/orders" aria-current={isAppNavActive(pathname, "/orders") ? "page" : undefined} className={linkClass("/orders")} data-testid="link-orders">{text.orders}</Link>
             <Link href="/customers" aria-current={isAppNavActive(pathname, "/customers") ? "page" : undefined} className={linkClass("/customers")} data-testid="link-customers">{text.customers}</Link>

@@ -24,7 +24,11 @@ import type {
   HealthStatus,
   InvoicePaymentLinkDeactivationResult,
   InvoicePaymentLinkInput,
-  InvoicePaymentLinkResult
+  InvoicePaymentLinkResult,
+  InvoiceScanResult,
+  InvoiceScannerStatus,
+  PurchaseInvoiceInput,
+  PurchaseInvoiceResult
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -309,3 +313,259 @@ export const useDeactivateInvoicePaymentLink = <TError = ErrorType<ApiError>,
       > => {
       return useMutation(getDeactivateInvoicePaymentLinkMutationOptions(options));
     }
+
+export const getGetInvoiceScannerStatusUrl = () => {
+
+
+
+
+  return `/api/invoice-scanner/status`
+}
+
+/**
+ * @summary Check invoice scanning setup
+ */
+export const getInvoiceScannerStatus = async ( options?: Parameters<typeof customFetch>[1]): Promise<InvoiceScannerStatus> => {
+
+  return customFetch<InvoiceScannerStatus>(getGetInvoiceScannerStatusUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetInvoiceScannerStatusQueryKey = () => {
+    return [
+    `/api/invoice-scanner/status`
+    ] as const;
+    }
+
+
+export const getGetInvoiceScannerStatusQueryOptions = <TData = Awaited<ReturnType<typeof getInvoiceScannerStatus>>, TError = ErrorType<ApiError>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getInvoiceScannerStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetInvoiceScannerStatusQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getInvoiceScannerStatus>>> = ({ signal }) => getInvoiceScannerStatus({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getInvoiceScannerStatus>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetInvoiceScannerStatusQueryResult = NonNullable<Awaited<ReturnType<typeof getInvoiceScannerStatus>>>
+export type GetInvoiceScannerStatusQueryError = ErrorType<ApiError>
+
+
+/**
+ * @summary Check invoice scanning setup
+ */
+
+export function useGetInvoiceScannerStatus<TData = Awaited<ReturnType<typeof getInvoiceScannerStatus>>, TError = ErrorType<ApiError>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getInvoiceScannerStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetInvoiceScannerStatusQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getScanInvoiceFileUrl = () => {
+
+
+
+
+  return `/api/invoice-scanner/scan`
+}
+
+/**
+ * Sends the file to OCR.Space and returns temporary text and editable extracted fields. The original file is not stored.
+ * @summary Read an invoice image or PDF
+ */
+export const scanInvoiceFile = async (scanInvoiceFileBody: Blob, options?: Parameters<typeof customFetch>[1]): Promise<InvoiceScanResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<InvoiceScanResult>(getScanInvoiceFileUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'image/jpeg', ...getHeaders(options?.headers) },
+    body: scanInvoiceFileBody
+  }
+);}
+
+
+
+
+
+export const getScanInvoiceFileMutationKey = () => ['scanInvoiceFile'] as const;
+
+export const getScanInvoiceFileMutationOptions = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof scanInvoiceFile>>, TError,ScanInvoiceFileMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof scanInvoiceFile>>, TError,ScanInvoiceFileMutationVariables, TContext> => {
+
+const mutationKey = getScanInvoiceFileMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof scanInvoiceFile>>, ScanInvoiceFileMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  scanInvoiceFile(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ScanInvoiceFileMutationResult = NonNullable<Awaited<ReturnType<typeof scanInvoiceFile>>>
+    export type ScanInvoiceFileMutationBody = BodyType<Blob>
+    export type ScanInvoiceFileMutationError = ErrorType<ApiError>
+    export type ScanInvoiceFileMutationVariables = {data: BodyType<Blob>}
+
+    /**
+ * @summary Read an invoice image or PDF
+ */
+export const useScanInvoiceFile = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof scanInvoiceFile>>, TError,ScanInvoiceFileMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof scanInvoiceFile>>,
+        TError,
+        ScanInvoiceFileMutationVariables,
+        TContext
+      > => {
+      return useMutation(getScanInvoiceFileMutationOptions(options));
+    }
+
+export const getSavePurchaseInvoiceUrl = () => {
+
+
+
+
+  return `/api/purchase-invoices`
+}
+
+/**
+ * Saves invoice history and applies confirmed inventory changes atomically for the authenticated owner.
+ * @summary Save a reviewed purchase invoice
+ */
+export const savePurchaseInvoice = async (purchaseInvoiceInput: PurchaseInvoiceInput, options?: Parameters<typeof customFetch>[1]): Promise<PurchaseInvoiceResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<PurchaseInvoiceResult>(getSavePurchaseInvoiceUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(purchaseInvoiceInput)
+  }
+);}
+
+
+
+
+
+export const getSavePurchaseInvoiceMutationKey = () => ['savePurchaseInvoice'] as const;
+
+export const getSavePurchaseInvoiceMutationOptions = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof savePurchaseInvoice>>, TError,SavePurchaseInvoiceMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof savePurchaseInvoice>>, TError,SavePurchaseInvoiceMutationVariables, TContext> => {
+
+const mutationKey = getSavePurchaseInvoiceMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof savePurchaseInvoice>>, SavePurchaseInvoiceMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  savePurchaseInvoice(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SavePurchaseInvoiceMutationResult = NonNullable<Awaited<ReturnType<typeof savePurchaseInvoice>>>
+    export type SavePurchaseInvoiceMutationBody = BodyType<PurchaseInvoiceInput>
+    export type SavePurchaseInvoiceMutationError = ErrorType<ApiError>
+    export type SavePurchaseInvoiceMutationVariables = {data: BodyType<PurchaseInvoiceInput>}
+
+    /**
+ * @summary Save a reviewed purchase invoice
+ */
+export const useSavePurchaseInvoice = <TError = ErrorType<ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof savePurchaseInvoice>>, TError,SavePurchaseInvoiceMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof savePurchaseInvoice>>,
+        TError,
+        SavePurchaseInvoiceMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSavePurchaseInvoiceMutationOptions(options));
+    }
+

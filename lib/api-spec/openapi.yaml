@@ -12,6 +12,8 @@ tags:
     description: Health operations
   - name: invoice-payments
     description: Test-mode invoice payment links
+  - name: invoice-scanner
+    description: Private supplier invoice scanning and purchase history
 paths:
   /healthz:
     get:
@@ -140,6 +142,135 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiError"
+  /invoice-scanner/status:
+    get:
+      operationId: getInvoiceScannerStatus
+      tags: [invoice-scanner]
+      summary: Check invoice scanning setup
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Indicates which server-side services are configured
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvoiceScannerStatus"
+        "401":
+          description: Authentication is missing or invalid
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /invoice-scanner/scan:
+    post:
+      operationId: scanInvoiceFile
+      tags: [invoice-scanner]
+      summary: Read an invoice image or PDF
+      description: Sends the file to OCR.Space and returns temporary text and editable extracted fields. The original file is not stored.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: X-OCR-Engine
+          in: header
+          required: true
+          schema:
+            type: integer
+            enum: [2, 3]
+        - name: X-File-Name
+          in: header
+          required: false
+          schema:
+            type: string
+            maxLength: 180
+      requestBody:
+        required: true
+        content:
+          image/jpeg:
+            schema:
+              $ref: "#/components/schemas/InvoiceScanFile"
+          image/png:
+            schema:
+              $ref: "#/components/schemas/InvoiceScanFile"
+          application/pdf:
+            schema:
+              $ref: "#/components/schemas/InvoiceScanFile"
+      responses:
+        "200":
+          description: OCR text and editable invoice fields
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvoiceScanResult"
+        "400":
+          description: Invalid file or OCR engine
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          description: Authentication is missing or invalid
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "413":
+          description: The file exceeds the free plan limits
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "429":
+          description: OCR rate limit reached
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "503":
+          description: OCR configuration is unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /purchase-invoices:
+    post:
+      operationId: savePurchaseInvoice
+      tags: [invoice-scanner]
+      summary: Save a reviewed purchase invoice
+      description: Saves invoice history and applies confirmed inventory changes atomically for the authenticated owner.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PurchaseInvoiceInput"
+      responses:
+        "201":
+          description: Invoice saved and selected product quantities updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PurchaseInvoiceResult"
+        "400":
+          description: Invoice details are invalid
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          description: Authentication is missing or invalid
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "409":
+          description: Duplicate invoice or product name
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
 components:
   schemas:
     HealthStatus:
@@ -180,6 +311,130 @@ components:
           enum: [deactivated, already_inactive]
       required:
         - status
+    InvoiceScannerStatus:
+      type: object
+      additionalProperties: false
+      properties:
+        ocrConfigured:
+          type: boolean
+        aiParserConfigured:
+          type: boolean
+      required: [ocrConfigured, aiParserConfigured]
+    InvoiceScanFile:
+      type: string
+      contentMediaType: application/octet-stream
+      description: Raw JPG, PNG, or PDF bytes.
+    ExtractedInvoiceItem:
+      type: object
+      additionalProperties: false
+      properties:
+        productName: { type: string }
+        description: { type: string }
+        sku: { type: string }
+        quantity: { type: ["string", "null"] }
+        unitOfMeasure: { type: string }
+        unitPurchasePrice: { type: ["string", "null"] }
+        lineTotal: { type: ["string", "null"] }
+        discount: { type: ["string", "null"] }
+        confidence:
+          type: string
+          enum: [high, medium, low, missing]
+      required: [productName, description, sku, quantity, unitOfMeasure, unitPurchasePrice, lineTotal, discount, confidence]
+    ExtractedInvoice:
+      type: object
+      additionalProperties: false
+      properties:
+        invoiceNumber: { type: ["string", "null"] }
+        invoiceDate: { type: ["string", "null"] }
+        supplierName: { type: ["string", "null"] }
+        supplierPhone: { type: ["string", "null"] }
+        supplierEmail: { type: ["string", "null"] }
+        currencyCode: { type: ["string", "null"] }
+        subtotal: { type: ["string", "null"] }
+        discount: { type: ["string", "null"] }
+        tax: { type: ["string", "null"] }
+        shippingFee: { type: ["string", "null"] }
+        otherCharges: { type: ["string", "null"] }
+        total: { type: ["string", "null"] }
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ExtractedInvoiceItem"
+        warnings:
+          type: array
+          items: { type: string }
+      required: [invoiceNumber, invoiceDate, supplierName, supplierPhone, supplierEmail, currencyCode, subtotal, discount, tax, shippingFee, otherCharges, total, items, warnings]
+    InvoiceScanResult:
+      type: object
+      additionalProperties: false
+      properties:
+        invoice:
+          anyOf:
+            - $ref: "#/components/schemas/ExtractedInvoice"
+            - type: "null"
+        extractedText: { type: string }
+        engine: { type: integer, enum: [2, 3] }
+        pageCount: { type: integer, minimum: 1, maximum: 3 }
+        parseWarning: { type: ["string", "null"] }
+      required: [invoice, extractedText, engine, pageCount, parseWarning]
+    PurchaseInvoiceItemInput:
+      type: object
+      additionalProperties: false
+      properties:
+        productName: { type: string, minLength: 1, maxLength: 160 }
+        description: { type: string, maxLength: 500 }
+        sku: { type: string, maxLength: 100 }
+        quantity: { type: string }
+        unitOfMeasure: { type: string, maxLength: 32 }
+        unitPurchasePrice: { type: string }
+        lineTotal: { type: string }
+        discount: { type: string }
+        confidence:
+          type: string
+          enum: [high, medium, low, missing]
+        action:
+          type: string
+          enum: [match, create, skip]
+        productId: { type: ["string", "null"], format: uuid }
+        sellingPrice: { type: string }
+        updateMaterialsCost: { type: boolean }
+      required: [productName, description, sku, quantity, unitOfMeasure, unitPurchasePrice, lineTotal, discount, confidence, action, productId, sellingPrice, updateMaterialsCost]
+    PurchaseInvoiceInput:
+      type: object
+      additionalProperties: false
+      properties:
+        invoiceNumber: { type: string, maxLength: 100 }
+        invoiceDate: { type: string, format: date }
+        supplierName: { type: string, maxLength: 160 }
+        supplierPhone: { type: string, maxLength: 40 }
+        supplierEmail: { type: string, maxLength: 254 }
+        currencyCode:
+          type: string
+          enum: [KWD, SAR, AED, BHD, QAR, OMR, USD]
+        subtotal: { type: string }
+        discount: { type: string }
+        tax: { type: string }
+        shippingFee: { type: string }
+        otherCharges: { type: string }
+        total: { type: string }
+        ocrEngine: { type: integer, enum: [0, 2, 3] }
+        items:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            $ref: "#/components/schemas/PurchaseInvoiceItemInput"
+      required: [invoiceNumber, invoiceDate, supplierName, supplierPhone, supplierEmail, currencyCode, subtotal, discount, tax, shippingFee, otherCharges, total, ocrEngine, items]
+    PurchaseInvoiceResult:
+      type: object
+      additionalProperties: false
+      properties:
+        invoiceId: { type: string, format: uuid }
+        invoiceNumber: { type: ["string", "null"] }
+        itemsCount: { type: integer }
+        stockUpdatedCount: { type: integer }
+        createdProductCount: { type: integer }
+      required: [invoiceId, invoiceNumber, itemsCount, stockUpdatedCount, createdProductCount]
     ApiError:
       type: object
       additionalProperties: false

@@ -7,9 +7,23 @@
  */
 
 export * from './apiError';
+export * from './extractedInvoice';
+export * from './extractedInvoiceItem';
+export * from './extractedInvoiceItemConfidence';
 export * from './healthStatus';
 export * from './invoicePaymentLinkDeactivationResult';
 export * from './invoicePaymentLinkDeactivationResultStatus';
 export * from './invoicePaymentLinkInput';
 export * from './invoicePaymentLinkResult';
 export * from './invoicePaymentLinkResultStatus';
+export * from './invoiceScanFile';
+export * from './invoiceScannerStatus';
+export * from './invoiceScanResult';
+export * from './invoiceScanResultEngine';
+export * from './purchaseInvoiceInput';
+export * from './purchaseInvoiceInputCurrencyCode';
+export * from './purchaseInvoiceInputOcrEngine';
+export * from './purchaseInvoiceItemInput';
+export * from './purchaseInvoiceItemInputAction';
+export * from './purchaseInvoiceItemInputConfidence';
+export * from './purchaseInvoiceResult';

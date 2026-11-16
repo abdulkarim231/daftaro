@@ -40,6 +40,192 @@ export interface InvoicePaymentLinkDeactivationResult {
   status: InvoicePaymentLinkDeactivationResultStatus;
 }
 
+export interface InvoiceScannerStatus {
+  ocrConfigured: boolean;
+  aiParserConfigured: boolean;
+}
+
+/**
+ * Raw JPG, PNG, or PDF bytes.
+ */
+export type InvoiceScanFile = Blob;
+
+export type ExtractedInvoiceItemConfidence = typeof ExtractedInvoiceItemConfidence[keyof typeof ExtractedInvoiceItemConfidence];
+
+
+export const ExtractedInvoiceItemConfidence = {
+  high: 'high',
+  medium: 'medium',
+  low: 'low',
+  missing: 'missing',
+} as const;
+
+export interface ExtractedInvoiceItem {
+  productName: string;
+  description: string;
+  sku: string;
+  /** @nullable */
+  quantity: string | null;
+  unitOfMeasure: string;
+  /** @nullable */
+  unitPurchasePrice: string | null;
+  /** @nullable */
+  lineTotal: string | null;
+  /** @nullable */
+  discount: string | null;
+  confidence: ExtractedInvoiceItemConfidence;
+}
+
+export interface ExtractedInvoice {
+  /** @nullable */
+  invoiceNumber: string | null;
+  /** @nullable */
+  invoiceDate: string | null;
+  /** @nullable */
+  supplierName: string | null;
+  /** @nullable */
+  supplierPhone: string | null;
+  /** @nullable */
+  supplierEmail: string | null;
+  /** @nullable */
+  currencyCode: string | null;
+  /** @nullable */
+  subtotal: string | null;
+  /** @nullable */
+  discount: string | null;
+  /** @nullable */
+  tax: string | null;
+  /** @nullable */
+  shippingFee: string | null;
+  /** @nullable */
+  otherCharges: string | null;
+  /** @nullable */
+  total: string | null;
+  items: ExtractedInvoiceItem[];
+  warnings: string[];
+}
+
+export type InvoiceScanResultEngine = typeof InvoiceScanResultEngine[keyof typeof InvoiceScanResultEngine];
+
+
+export const InvoiceScanResultEngine = {
+  NUMBER_2: 2,
+  NUMBER_3: 3,
+} as const;
+
+export interface InvoiceScanResult {
+  invoice: ExtractedInvoice | null;
+  extractedText: string;
+  engine: InvoiceScanResultEngine;
+  /**
+     * @minimum 1
+     * @maximum 3
+     */
+  pageCount: number;
+  /** @nullable */
+  parseWarning: string | null;
+}
+
+export type PurchaseInvoiceItemInputConfidence = typeof PurchaseInvoiceItemInputConfidence[keyof typeof PurchaseInvoiceItemInputConfidence];
+
+
+export const PurchaseInvoiceItemInputConfidence = {
+  high: 'high',
+  medium: 'medium',
+  low: 'low',
+  missing: 'missing',
+} as const;
+
+export type PurchaseInvoiceItemInputAction = typeof PurchaseInvoiceItemInputAction[keyof typeof PurchaseInvoiceItemInputAction];
+
+
+export const PurchaseInvoiceItemInputAction = {
+  match: 'match',
+  create: 'create',
+  skip: 'skip',
+} as const;
+
+export interface PurchaseInvoiceItemInput {
+  /**
+     * @minLength 1
+     * @maxLength 160
+     */
+  productName: string;
+  /** @maxLength 500 */
+  description: string;
+  /** @maxLength 100 */
+  sku: string;
+  quantity: string;
+  /** @maxLength 32 */
+  unitOfMeasure: string;
+  unitPurchasePrice: string;
+  lineTotal: string;
+  discount: string;
+  confidence: PurchaseInvoiceItemInputConfidence;
+  action: PurchaseInvoiceItemInputAction;
+  /** @nullable */
+  productId: string | null;
+  sellingPrice: string;
+  updateMaterialsCost: boolean;
+}
+
+export type PurchaseInvoiceInputCurrencyCode = typeof PurchaseInvoiceInputCurrencyCode[keyof typeof PurchaseInvoiceInputCurrencyCode];
+
+
+export const PurchaseInvoiceInputCurrencyCode = {
+  KWD: 'KWD',
+  SAR: 'SAR',
+  AED: 'AED',
+  BHD: 'BHD',
+  QAR: 'QAR',
+  OMR: 'OMR',
+  USD: 'USD',
+} as const;
+
+export type PurchaseInvoiceInputOcrEngine = typeof PurchaseInvoiceInputOcrEngine[keyof typeof PurchaseInvoiceInputOcrEngine];
+
+
+export const PurchaseInvoiceInputOcrEngine = {
+  NUMBER_0: 0,
+  NUMBER_2: 2,
+  NUMBER_3: 3,
+} as const;
+
+export interface PurchaseInvoiceInput {
+  /** @maxLength 100 */
+  invoiceNumber: string;
+  invoiceDate: string;
+  /** @maxLength 160 */
+  supplierName: string;
+  /** @maxLength 40 */
+  supplierPhone: string;
+  /** @maxLength 254 */
+  supplierEmail: string;
+  currencyCode: PurchaseInvoiceInputCurrencyCode;
+  subtotal: string;
+  discount: string;
+  tax: string;
+  shippingFee: string;
+  otherCharges: string;
+  total: string;
+  ocrEngine: PurchaseInvoiceInputOcrEngine;
+  /**
+     * @minItems 1
+     * @maxItems 100
+     */
+  items: PurchaseInvoiceItemInput[];
+}
+
+export interface PurchaseInvoiceResult {
+  invoiceId: string;
+  /** @nullable */
+  invoiceNumber: string | null;
+  itemsCount: number;
+  stockUpdatedCount: number;
+  createdProductCount: number;
+}
+
 export interface ApiError {
   error: string;
 }
+

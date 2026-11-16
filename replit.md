@@ -45,7 +45,7 @@ Daftaro is a planned Arabic-first financial companion for small and home-based b
 - Authentication uses Supabase email/password with PKCE. Keep email confirmation enabled; users must be redirected only to allow-listed callback URLs.
 - The auth completion page owns business-profile onboarding; `/dashboard` owns period-based KPIs and financial comparisons; `/transactions` owns income/expense records and the all-time currency-separated summary; `/products` owns product costs and per-unit profit/margin. Keep AI in its later approved phase.
 - Implement billing with Stripe Test Mode only until the user explicitly approves live payments and account eligibility is confirmed.
-- OCR is the final phase; compare providers and wait for approval before selecting one.
+- OCR is the final phase. The user selected OCR.Space's free tier; keep its key in Replit Secrets and server-side only, never store the original invoice file, and explain the free account/key setup step by step. Use the shared OpenAPI contract and regenerate clients after contract changes.
 
 ## Product
 
