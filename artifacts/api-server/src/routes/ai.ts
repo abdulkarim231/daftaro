@@ -23,6 +23,7 @@ import {
   sanitizeShareNarrative,
 } from "../lib/ai-report-share";
 import { boundAiChatAnswer, normalizeAiChatHistoryMessages } from "../lib/ai-chat-history";
+import { localizeAnalysisNarrative } from "../lib/ai-narrative-language";
 import { completeWithOpenRouter, OpenRouterError } from "../lib/openrouter";
 
 const router: IRouter = Router();
@@ -216,7 +217,7 @@ function makeAnalysisPrompt(analysis: ReturnType<typeof buildAiAnalysis>, langua
       role: "system" as const,
       content: [
         "You are Daftaro, a careful business analyst for a small business owner.",
-        `Reply in ${language === "ar" ? "Arabic" : "English"}.`,
+        `Write every human-readable string, including the summary and every recommendation, entirely in ${language === "ar" ? "Arabic" : "English"}. Do not switch languages. Keep currency codes and proper names unchanged.`,
         "Use only facts and evidence IDs in the supplied JSON. Never invent figures, causes, products, or periods.",
         "Ledger income and order revenue are separate. Never combine them. Cancelled orders are excluded. Paid, unpaid/pending, and failed/refunded totals are distinct.",
         "The user's current-month and previous-full-month ledger totals are provided separately from the selected comparison period.",
@@ -290,7 +291,11 @@ router.get("/ai/analysis", async (req: Request, res: Response): Promise<void> =>
     const analysis = await loadAnalysis(auth.client, auth.userId, period, currencyCode);
     try {
       const raw = await completeWithOpenRouter(makeAnalysisPrompt(analysis, language));
-      const ai = parseNarrative(raw, new Set(analysis.evidence.map((entry) => entry.id)));
+      const ai = localizeAnalysisNarrative(
+        analysis,
+        parseNarrative(raw, new Set(analysis.evidence.map((entry) => entry.id))),
+        language,
+      );
       res.json({ ...analysis, ai, aiError: null });
     } catch (error) {
       if (!(error instanceof OpenRouterError)) throw error;
@@ -523,13 +528,18 @@ router.post("/ai/report-shares", async (req: Request, res: Response): Promise<vo
 
   try {
     const analysis = await loadAnalysis(auth.client, auth.userId, period, currencyCode);
+    const language = asLanguage(req.body?.language);
     let modelNarrative: { summary: string; recommendations: Array<{ evidenceId: string; advice: string }> } = {
       summary: "",
       recommendations: [],
     };
     try {
-      const raw = await completeWithOpenRouter(makeAnalysisPrompt(analysis, asLanguage(req.body?.language)));
-      modelNarrative = parseNarrative(raw, new Set(analysis.evidence.map((entry) => entry.id)));
+      const raw = await completeWithOpenRouter(makeAnalysisPrompt(analysis, language));
+      modelNarrative = localizeAnalysisNarrative(
+        analysis,
+        parseNarrative(raw, new Set(analysis.evidence.map((entry) => entry.id))),
+        language,
+      );
     } catch (error) {
       req.log.warn(
         { reason: error instanceof Error ? error.name : "unknown" },

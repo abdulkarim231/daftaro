@@ -344,6 +344,7 @@ export default function InsightsClient() {
   const loadAnalysis = useCallback(async () => {
     if (!userId) return;
     setLoading(true);
+    setAnalysis(null);
     setAnalysisError("");
     try {
       setAnalysis(await getAiAnalysis(period, currency, language));
