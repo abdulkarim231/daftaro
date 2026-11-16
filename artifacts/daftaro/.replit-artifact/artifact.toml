@@ -20,8 +20,156 @@ serve = "static"
 publicDir = "artifacts/daftaro/out"
 
 [[services.production.rewrites]]
-from = "/*"
-to = "/index.html"
+from = "/404"
+to = "/404.html"
+
+[[services.production.rewrites]]
+from = "/404/"
+to = "/404.html"
+
+[[services.production.rewrites]]
+from = "/_not-found"
+to = "/_not-found.html"
+
+[[services.production.rewrites]]
+from = "/_not-found/"
+to = "/_not-found.html"
+
+[[services.production.rewrites]]
+from = "/not-found"
+to = "/not-found.html"
+
+[[services.production.rewrites]]
+from = "/not-found/"
+to = "/not-found.html"
+
+[[services.production.rewrites]]
+from = "/auth"
+to = "/auth.html"
+
+[[services.production.rewrites]]
+from = "/auth/"
+to = "/auth.html"
+
+[[services.production.rewrites]]
+from = "/auth/callback"
+to = "/auth/callback.html"
+
+[[services.production.rewrites]]
+from = "/auth/callback/"
+to = "/auth/callback.html"
+
+[[services.production.rewrites]]
+from = "/auth/complete"
+to = "/auth/complete.html"
+
+[[services.production.rewrites]]
+from = "/auth/complete/"
+to = "/auth/complete.html"
+
+[[services.production.rewrites]]
+from = "/auth/signup"
+to = "/auth/signup.html"
+
+[[services.production.rewrites]]
+from = "/auth/signup/"
+to = "/auth/signup.html"
+
+[[services.production.rewrites]]
+from = "/connection-test"
+to = "/connection-test.html"
+
+[[services.production.rewrites]]
+from = "/connection-test/"
+to = "/connection-test.html"
+
+[[services.production.rewrites]]
+from = "/create-order"
+to = "/create-order.html"
+
+[[services.production.rewrites]]
+from = "/create-order/"
+to = "/create-order.html"
+
+[[services.production.rewrites]]
+from = "/customers"
+to = "/customers.html"
+
+[[services.production.rewrites]]
+from = "/customers/"
+to = "/customers.html"
+
+[[services.production.rewrites]]
+from = "/dashboard"
+to = "/dashboard.html"
+
+[[services.production.rewrites]]
+from = "/dashboard/"
+to = "/dashboard.html"
+
+[[services.production.rewrites]]
+from = "/insights"
+to = "/insights.html"
+
+[[services.production.rewrites]]
+from = "/insights/"
+to = "/insights.html"
+
+[[services.production.rewrites]]
+from = "/invoice"
+to = "/invoice.html"
+
+[[services.production.rewrites]]
+from = "/invoice/"
+to = "/invoice.html"
+
+[[services.production.rewrites]]
+from = "/invoice-scanner"
+to = "/invoice-scanner.html"
+
+[[services.production.rewrites]]
+from = "/invoice-scanner/"
+to = "/invoice-scanner.html"
+
+[[services.production.rewrites]]
+from = "/order-details"
+to = "/order-details.html"
+
+[[services.production.rewrites]]
+from = "/order-details/"
+to = "/order-details.html"
+
+[[services.production.rewrites]]
+from = "/orders"
+to = "/orders.html"
+
+[[services.production.rewrites]]
+from = "/orders/"
+to = "/orders.html"
+
+[[services.production.rewrites]]
+from = "/products"
+to = "/products.html"
+
+[[services.production.rewrites]]
+from = "/products/"
+to = "/products.html"
+
+[[services.production.rewrites]]
+from = "/shared-report"
+to = "/shared-report.html"
+
+[[services.production.rewrites]]
+from = "/shared-report/"
+to = "/shared-report.html"
+
+[[services.production.rewrites]]
+from = "/transactions"
+to = "/transactions.html"
+
+[[services.production.rewrites]]
+from = "/transactions/"
+to = "/transactions.html"
 
 [services.env]
 PORT = "22614"
