@@ -20,6 +20,7 @@ import {
 } from "../lib/money";
 import { AppHeader } from "../components/app-header";
 import { useAppLanguage } from "../hooks/use-app-language";
+import { usePageReturnRefresh } from "../hooks/use-page-return-refresh";
 import { supabase } from "../lib/supabase";
 import { canPayPublicInvoice } from "../lib/payment-links";
 import {
@@ -67,7 +68,7 @@ const C = {
     invoiceTitle: "فاتورة", publicInvoice: "فاتورة إلكترونية", business: "النشاط التجاري",
     issued: "تاريخ الإصدار", invoiceNo: "رقم الفاتورة", orderNo: "رقم الطلب", billTo: "فاتورة إلى",
     paymentLink: "رابط الدفع",
-    paymentLinkAutoHelp: "يُنشأ الرابط تلقائيًا من الإجمالي النهائي المحفوظ في الفاتورة. لا تتحدث حالة الدفع تلقائيًا.",
+    paymentLinkAutoHelp: "يُنشأ الرابط من الإجمالي النهائي، وبعد تأكيد Stripe يُحدّث الدفع ويُسجّل الدخل تلقائيًا.",
     paymentLinkReady: "رابط الدفع جاهز من إجمالي الفاتورة.",
     paymentLinkNeedsRetry: "الرابط غير جاهز بعد. أعيدي المحاولة لإنشائه من الإجمالي المحفوظ.",
     generatePaymentLink: "إنشاء رابط الدفع",
@@ -122,7 +123,7 @@ const C = {
     invoiceTitle: "Invoice", publicInvoice: "Digital invoice", business: "Business",
     issued: "Issued", invoiceNo: "Invoice number", orderNo: "Order number", billTo: "Bill to",
     paymentLink: "Payment link",
-    paymentLinkAutoHelp: "The link is generated from the saved final invoice total. Payment status does not update automatically.",
+    paymentLinkAutoHelp: "The link uses the saved invoice total. Stripe confirmation automatically updates payment status and records the income.",
     paymentLinkReady: "The payment link matches the invoice total.",
     paymentLinkNeedsRetry: "The link is not ready yet. Retry to create it from the saved total.",
     generatePaymentLink: "Create payment link",
@@ -232,8 +233,11 @@ export default function OrdersUI({ screen }: { screen: Screen }) {
     });
   }, []);
 
-  const load = useCallback(async () => {
-    setLoading(true); setError(false);
+  const load = useCallback(async (quiet = false) => {
+    if (!quiet) {
+      setLoading(true);
+      setError(false);
+    }
     try {
       if (screen === "invoice") {
         const query = new URLSearchParams(window.location.search);
@@ -281,6 +285,7 @@ export default function OrdersUI({ screen }: { screen: Screen }) {
         setDetails(record);
         if (record) setStatusDraft({ order_status: record.order_status, payment_status: record.payment_status });
       }
+      setError(false);
     } catch (loadError) {
       if (loadError instanceof Error && loadError.message === "Authentication required.") {
         router.replace("/auth");
@@ -290,10 +295,16 @@ export default function OrdersUI({ screen }: { screen: Screen }) {
         router.replace("/auth/complete");
         return;
       }
-      setError(true);
-    } finally { setLoading(false); }
+      if (!quiet) setError(true);
+    } finally {
+      if (!quiet) setLoading(false);
+    }
   }, [router, screen]);
   useEffect(() => { void load(); }, [load]);
+
+  usePageReturnRefresh(() => {
+    void load(true);
+  }, screen !== "create-order");
 
   const refreshOrderableProducts = useCallback(async () => {
     const requestVersion = ++stockRefreshVersion.current;

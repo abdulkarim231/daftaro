@@ -47,6 +47,7 @@ import { formatMarginHundredths, formatMilliAmount, milliToDatabaseValue, parseA
 import { AppHeader } from "../../components/app-header";
 import { AiOverviewCard } from "../../components/ai-overview-card";
 import { useAppLanguage } from "../../hooks/use-app-language";
+import { usePageReturnRefresh } from "../../hooks/use-page-return-refresh";
 import { supabase } from "../../lib/supabase";
 
 type Language = "ar" | "en";
@@ -262,6 +263,10 @@ export default function DashboardClient() {
       }
     }
   }, [dateRange, router]);
+
+  usePageReturnRefresh(() => {
+    void loadData(true);
+  }, Boolean(dateRange));
 
   useEffect(() => {
     if (dateRange) void loadData();

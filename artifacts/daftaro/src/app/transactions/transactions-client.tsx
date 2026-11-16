@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowDownLeft,
@@ -26,6 +26,7 @@ import {
 } from "../../lib/money";
 import { AppHeader } from "../../components/app-header";
 import { useAppLanguage } from "../../hooks/use-app-language";
+import { usePageReturnRefresh } from "../../hooks/use-page-return-refresh";
 import { supabase } from "../../lib/supabase";
 
 type Language = "ar" | "en";
@@ -256,6 +257,7 @@ export default function TransactionsClient() {
   const [userId, setUserId] = useState<string | null>(null);
   const [currency, setCurrency] = useState("KWD");
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const transactionLoadId = useRef(0);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [notice, setNotice] = useState<{ kind: "success" | "error"; message: string } | null>(null);
@@ -287,8 +289,9 @@ export default function TransactionsClient() {
     document.body.classList.toggle("arabic", rtl);
   }, [language, rtl]);
 
-  const loadTransactions = useCallback(async (currentUserId: string) => {
-    setLoadError(false);
+  const loadTransactions = useCallback(async (currentUserId: string, quiet = false) => {
+    const requestId = ++transactionLoadId.current;
+    if (!quiet) setLoadError(false);
     const allTransactions: Transaction[] = [];
     try {
       for (let offset = 0; ; offset += TRANSACTION_PAGE_SIZE) {
@@ -304,18 +307,23 @@ export default function TransactionsClient() {
 
         const page = (data ?? []) as Transaction[];
         allTransactions.push(...page);
+        if (requestId !== transactionLoadId.current) return;
         if (page.length < TRANSACTION_PAGE_SIZE) break;
       }
     } catch (error) {
-      setLoadError(true);
+      if (requestId === transactionLoadId.current && !quiet) setLoadError(true);
       throw error;
     }
+    if (requestId !== transactionLoadId.current) return;
     setTransactions(allTransactions);
+    setLoadError(false);
   }, []);
 
-  const initialize = useCallback(async () => {
-    setLoading(true);
-    setLoadError(false);
+  const initialize = useCallback(async (quiet = false) => {
+    if (!quiet) {
+      setLoading(true);
+      setLoadError(false);
+    }
     try {
       const { data, error } = await supabase.auth.getSession();
       if (error) throw error;
@@ -337,17 +345,32 @@ export default function TransactionsClient() {
         return;
       }
       setCurrency(profile.currency_code);
-      await loadTransactions(currentUser.id);
+      await loadTransactions(currentUser.id, quiet);
     } catch {
-      setLoadError(true);
+      if (!quiet) setLoadError(true);
     } finally {
-      setLoading(false);
+      if (!quiet) setLoading(false);
     }
   }, [loadTransactions, router]);
 
   useEffect(() => {
     void initialize();
   }, [initialize]);
+
+  usePageReturnRefresh(() => {
+    void initialize(true);
+  });
+
+  useEffect(() => {
+    if (!userId) return;
+    const refreshWhileVisible = () => {
+      if (document.visibilityState === "visible") {
+        void loadTransactions(userId, true).catch(() => {});
+      }
+    };
+    const interval = window.setInterval(refreshWhileVisible, 30_000);
+    return () => window.clearInterval(interval);
+  }, [loadTransactions, userId]);
 
   function openCreate(type: TransactionType = "income") {
     setEditing(null);

@@ -26,6 +26,7 @@ import {
 } from "../../lib/money";
 import { AppHeader } from "../../components/app-header";
 import { useAppLanguage } from "../../hooks/use-app-language";
+import { usePageReturnRefresh } from "../../hooks/use-page-return-refresh";
 
 type Language = "ar" | "en";
 type Product = {
@@ -174,23 +175,26 @@ export default function ProductsClient() {
     document.body.classList.toggle("arabic", rtl);
   }, [language, rtl]);
 
-  const loadProducts = useCallback(async (currentUserId: string) => {
-    setLoadError(false);
+  const loadProducts = useCallback(async (currentUserId: string, quiet = false) => {
+    if (!quiet) setLoadError(false);
     const { data, error } = await supabase
       .from("business_products")
       .select("id,user_id,name,selling_price,materials_cost,packaging_cost,other_cost,available_quantity,low_stock_threshold,currency_code,created_at,updated_at")
       .eq("user_id", currentUserId)
       .order("created_at", { ascending: false });
     if (error) {
-      setLoadError(true);
+      if (!quiet) setLoadError(true);
       throw error;
     }
     setProducts((data ?? []) as Product[]);
+    setLoadError(false);
   }, []);
 
-  const initialize = useCallback(async () => {
-    setLoading(true);
-    setLoadError(false);
+  const initialize = useCallback(async (quiet = false) => {
+    if (!quiet) {
+      setLoading(true);
+      setLoadError(false);
+    }
     try {
       const { data, error } = await supabase.auth.getSession();
       if (error) throw error;
@@ -211,17 +215,21 @@ export default function ProductsClient() {
         return;
       }
       setCurrency(profile.currency_code);
-      await loadProducts(currentUser.id);
+      await loadProducts(currentUser.id, quiet);
     } catch {
-      setLoadError(true);
+      if (!quiet) setLoadError(true);
     } finally {
-      setLoading(false);
+      if (!quiet) setLoading(false);
     }
   }, [loadProducts, router]);
 
   useEffect(() => {
     void initialize();
   }, [initialize]);
+
+  usePageReturnRefresh(() => {
+    void initialize(true);
+  });
 
   function openCreate() {
     setEditing(null);

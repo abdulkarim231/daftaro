@@ -4,6 +4,7 @@ export interface StripeCheckoutEventLike {
   id: string;
   type: string;
   livemode: boolean;
+  created: number;
   data: { object: unknown };
 }
 
@@ -12,6 +13,7 @@ export interface ConfirmedStripePayment {
   paymentLinkId: string;
   amountTotal: number;
   currencyCode: string;
+  transactionDate: string;
 }
 
 type CheckoutSessionLike = {
@@ -28,10 +30,26 @@ const PAID_CHECKOUT_EVENTS = new Set([
 ]);
 const PAYMENT_LINK_ID = /^plink_[A-Za-z0-9]+$/;
 
+function kuwaitDateFromUnixTimestamp(timestamp: number): string {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Kuwait",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date(timestamp * 1000));
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
 export function extractConfirmedStripePayment(
   event: StripeCheckoutEventLike,
 ): ConfirmedStripePayment | null {
-  if (event.livemode || !PAID_CHECKOUT_EVENTS.has(event.type)) return null;
+  if (
+    event.livemode
+    || !PAID_CHECKOUT_EVENTS.has(event.type)
+    || !Number.isSafeInteger(event.created)
+    || event.created <= 0
+  ) return null;
   if (!event.data || typeof event.data.object !== "object" || event.data.object === null) return null;
 
   const session = event.data.object as CheckoutSessionLike;
@@ -61,6 +79,7 @@ export function extractConfirmedStripePayment(
     paymentLinkId,
     amountTotal: session.amount_total,
     currencyCode: session.currency.toUpperCase(),
+    transactionDate: kuwaitDateFromUnixTimestamp(event.created),
   };
 }
 
@@ -75,4 +94,27 @@ export function paymentMatchesInvoiceAmount(
   } catch {
     return false;
   }
+}
+
+export function buildStripeIncomeTransaction(
+  order: {
+    id: string;
+    order_number: string;
+    total: string | number;
+    currency_code: string;
+  },
+  userId: string,
+  transactionDate: string,
+) {
+  return {
+    // Reusing the order UUID makes Stripe retries idempotent without a schema change.
+    id: order.id,
+    user_id: userId,
+    transaction_type: "income" as const,
+    amount: String(order.total),
+    currency_code: order.currency_code,
+    transaction_date: transactionDate,
+    description: `دخل من الطلب ${order.order_number}`,
+    category: null,
+  };
 }

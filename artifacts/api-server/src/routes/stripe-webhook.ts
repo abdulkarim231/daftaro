@@ -1,6 +1,10 @@
 import { createClient } from "@supabase/supabase-js";
 import express, { Router, type IRouter, type Request, type Response } from "express";
-import { extractConfirmedStripePayment, paymentMatchesInvoiceAmount } from "../lib/stripe-payment-confirmation";
+import {
+  buildStripeIncomeTransaction,
+  extractConfirmedStripePayment,
+  paymentMatchesInvoiceAmount,
+} from "../lib/stripe-payment-confirmation";
 import { createStripeTestClient, StripeTestConfigurationError } from "../lib/stripe-client";
 
 const router: IRouter = Router();
@@ -82,7 +86,7 @@ router.post(
 
       const { data: order, error: orderError } = await supabase
         .from("orders")
-        .select("id,total,currency_code,payment_status")
+        .select("id,order_number,total,currency_code,payment_status")
         .eq("id", invoice.order_id)
         .eq("user_id", invoice.user_id)
         .maybeSingle();
@@ -99,7 +103,20 @@ router.post(
         return;
       }
 
-      if (order.payment_status === "Paid" || order.payment_status === "Refunded") {
+      if (order.payment_status === "Refunded") {
+        respondReceived(res, true);
+        return;
+      }
+
+      const { error: transactionError } = await supabase
+        .from("financial_transactions")
+        .upsert(
+          buildStripeIncomeTransaction(order, invoice.user_id, payment.transactionDate),
+          { onConflict: "id", ignoreDuplicates: true },
+        );
+      if (transactionError) throw transactionError;
+
+      if (order.payment_status === "Paid") {
         respondReceived(res, true);
         return;
       }
