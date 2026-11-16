@@ -181,6 +181,7 @@ const copy = {
     tooManyPages: `تدعم الخطة المجانية ملفات PDF حتى ${MAX_INVOICE_PDF_PAGES} صفحات. لن نحذف أي صفحة تلقائيًا.`,
     scanError: "تعذرت قراءة الملف. حاول بصورة أوضح.",
     parseWarning: "تم استخراج النص، لكن تعذر ترتيب الحقول تلقائيًا. أدخلها وراجعها قبل الحفظ.",
+    partialParseWarning: "تمت تعبئة الحقول التي أمكن تحديدها تلقائيًا. راجع بقية البيانات قبل الحفظ.",
     requiredName: "أدخل اسمًا لكل منتج.",
     invalidDate: "أدخل تاريخًا صحيحًا للفاتورة.",
     invalidAmount: "تحقق من مبالغ الفاتورة؛ استخدم أرقامًا موجبة وبحد أقصى 3 خانات عشرية.",
@@ -311,6 +312,7 @@ const copy = {
     tooManyPages: `The free plan supports PDFs with up to ${MAX_INVOICE_PDF_PAGES} pages. No page will be removed automatically.`,
     scanError: "The file could not be read. Try a clearer image.",
     parseWarning: "Text was extracted, but fields could not be arranged automatically. Enter and review them before saving.",
+    partialParseWarning: "Fields that could be identified were filled automatically. Review the remaining details before saving.",
     requiredName: "Enter a name for each item.",
     invalidDate: "Enter a valid invoice date.",
     invalidAmount: "Check invoice amounts; use positive values with up to 3 decimal places.",
@@ -850,13 +852,18 @@ export default function InvoiceScannerClient() {
       setExtractedText(result.extractedText);
       const warnings = [...(result.invoice?.warnings ?? [])];
       if (!result.invoice?.currencyCode) warnings.push(text.currencyNotDetected);
-      if (result.parseWarning) warnings.push(result.parseWarning);
+      if (result.parseWarning) {
+        warnings.push(result.invoice ? text.partialParseWarning : text.parseWarning);
+      }
       setParseWarnings(warnings);
       const nextDraft = parseEngineDraft(result, products);
       setDraft(nextDraft);
       setReviewOpen(true);
       if (result.parseWarning) {
-        setNotice({ kind: "error", message: language === "ar" ? text.parseWarning : result.parseWarning });
+        setNotice({
+          kind: result.invoice ? "success" : "error",
+          message: result.invoice ? text.partialParseWarning : text.parseWarning,
+        });
       }
     } catch (error) {
       setFileError(localizedError(error instanceof Error ? error.message : "", language, text));

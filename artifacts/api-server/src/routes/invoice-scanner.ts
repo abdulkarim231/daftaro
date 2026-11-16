@@ -12,6 +12,8 @@ import { completeWithOpenRouter, OpenRouterError } from "../lib/openrouter";
 import {
   buildInvoiceExtractionPrompt,
   extractOcrText,
+  extractInvoiceFromOcrText,
+  hasDetectedInvoiceValues,
   normalizeExtractedInvoice,
 } from "../lib/invoice-ocr";
 
@@ -307,12 +309,16 @@ router.post("/invoice-scanner/scan", async (req: Request, res: Response): Promis
   } catch (error) {
     const status = error instanceof OpenRouterError ? error.status : 502;
     req.log.warn({ status }, "Invoice text could not be structured by the AI model");
+    const locallyExtractedInvoice = extractInvoiceFromOcrText(ocrText);
+    const fallbackInvoice = hasDetectedInvoiceValues(locallyExtractedInvoice) ? locallyExtractedInvoice : null;
     res.json(ScanInvoiceFileResponse.parse({
-      invoice: null,
+      invoice: fallbackInvoice,
       extractedText: ocrText,
       engine,
       pageCount,
-      parseWarning: "The text was read, but automatic field detection is unavailable. Review and enter the invoice fields manually.",
+      parseWarning: fallbackInvoice
+        ? "Some fields were filled from the recognized text. Review all details before saving."
+        : "The text was read, but automatic field detection is unavailable. Review and enter the invoice fields manually.",
     }));
   }
 });
