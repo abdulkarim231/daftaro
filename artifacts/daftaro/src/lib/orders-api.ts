@@ -39,6 +39,7 @@ export interface BusinessProduct {
   selling_price: StoredAmount;
   currency_code: string;
   available_quantity: number;
+  low_stock_threshold: number;
 }
 
 export interface OrderItemInput {
@@ -213,7 +214,7 @@ export async function getOrderableProducts(currencyCode: string): Promise<Busine
   for (let offset = 0; ; offset += PAGE_SIZE) {
     const { data, error } = await supabase
       .from("business_products")
-      .select("id,user_id,name,selling_price,currency_code,available_quantity")
+      .select("id,user_id,name,selling_price,currency_code,available_quantity,low_stock_threshold")
       .eq("user_id", userId)
       .eq("currency_code", currencyCode)
       .order("name", { ascending: true })

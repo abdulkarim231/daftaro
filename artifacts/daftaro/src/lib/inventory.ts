@@ -31,6 +31,7 @@ export function isLowStock(
 export interface StockBalance {
   id: string;
   available_quantity: number;
+  low_stock_threshold?: number;
 }
 
 export interface ReservedStockItem {
@@ -47,6 +48,26 @@ export interface StockShortage {
   product_id: string;
   requested: number;
   available: number;
+}
+
+export interface StockLowWarning {
+  product_id: string;
+  requested: number;
+  available: number;
+  remaining: number;
+  threshold: number;
+}
+
+function requestedQuantityByProduct(requestedItems: StockRequestItem[]) {
+  const requestedByProduct = new Map<string, number>();
+  for (const item of requestedItems) {
+    if (!Number.isInteger(item.quantity) || item.quantity <= 0) continue;
+    requestedByProduct.set(
+      item.product_id,
+      (requestedByProduct.get(item.product_id) ?? 0) + item.quantity,
+    );
+  }
+  return requestedByProduct;
 }
 
 export function availableQuantityForOrder(
@@ -68,19 +89,33 @@ export function findStockShortages(
   products: StockBalance[],
   reservedItems: ReservedStockItem[] = [],
 ): StockShortage[] {
-  const requestedByProduct = new Map<string, number>();
-  for (const item of requestedItems) {
-    if (!Number.isInteger(item.quantity) || item.quantity <= 0) continue;
-    requestedByProduct.set(
-      item.product_id,
-      (requestedByProduct.get(item.product_id) ?? 0) + item.quantity,
-    );
-  }
-
-  return [...requestedByProduct].flatMap(([productId, requested]) => {
+  return [...requestedQuantityByProduct(requestedItems)].flatMap(([productId, requested]) => {
     const available = availableQuantityForOrder(productId, products, reservedItems);
     return available !== null && requested > available
       ? [{ product_id: productId, requested, available }]
+      : [];
+  });
+}
+
+export function findLowStockWarnings(
+  requestedItems: StockRequestItem[],
+  products: StockBalance[],
+  reservedItems: ReservedStockItem[] = [],
+): StockLowWarning[] {
+  return [...requestedQuantityByProduct(requestedItems)].flatMap(([productId, requested]) => {
+    const product = products.find((candidate) => candidate.id === productId);
+    const available = availableQuantityForOrder(productId, products, reservedItems);
+    const threshold = product?.low_stock_threshold;
+    if (
+      available === null
+      || !Number.isInteger(threshold)
+      || threshold === undefined
+      || requested > available
+    ) return [];
+
+    const remaining = available - requested;
+    return isLowStock(remaining, threshold)
+      ? [{ product_id: productId, requested, available, remaining, threshold }]
       : [];
   });
 }

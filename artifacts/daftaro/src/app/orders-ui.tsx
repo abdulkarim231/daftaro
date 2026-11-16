@@ -24,6 +24,7 @@ import { supabase } from "../lib/supabase";
 import { canPayPublicInvoice } from "../lib/payment-links";
 import {
   availableQuantityForOrder,
+  findLowStockWarnings,
   findStockShortages,
 } from "../lib/inventory";
 
@@ -51,6 +52,8 @@ const C = {
     products: "المنتجات", quantity: "الكمية", addProduct: "إضافة منتج", noProducts: "لا توجد منتجات قابلة للطلب بهذه العملة.",
     available: "المتاح", requested: "المطلوب",
     stockValidation: "الكمية المطلوبة تتجاوز المتاح لبعض المنتجات. عدّل الكمية أو المخزون قبل حفظ الطلب.",
+    lowStockWarning: "بعد هذا الطلب، سيصل مخزون بعض المنتجات إلى حد التنبيه أو أقل. ما زالت الكمية كافية لحفظ الطلب.",
+    remainingAfterOrder: "المتبقي بعد الطلب", lowStockThreshold: "حد المخزون المنخفض",
     discount: "الخصم", shipping: "رسوم التوصيل", orderDate: "تاريخ الطلب", create: "حفظ الطلب",
     subtotal: "المجموع الفرعي", total: "الإجمالي", item: "المنتج", unitPrice: "سعر الوحدة",
     chooseProduct: "اختر منتجًا", validationOrder: "اختر عميلًا وأكمل المنتجات بكميات من ١ إلى ٩٩، دون تكرار المنتج.",
@@ -102,6 +105,8 @@ const C = {
     products: "Products", quantity: "Quantity", addProduct: "Add product", noProducts: "No orderable products in this currency.",
     available: "Available", requested: "Requested",
     stockValidation: "The requested quantity exceeds available stock for one or more products. Adjust the quantity or stock before saving.",
+    lowStockWarning: "After this order, some products will be at or below their low-stock threshold. There is still enough stock to save the order.",
+    remainingAfterOrder: "Remaining after order", lowStockThreshold: "Low-stock threshold",
     discount: "Discount", shipping: "Shipping fee", orderDate: "Order date", create: "Save order",
     subtotal: "Subtotal", total: "Total", item: "Product", unitPrice: "Unit price",
     chooseProduct: "Choose a product", validationOrder: "Choose a customer and complete each product with a quantity from 1 to 99. Products cannot repeat.",
@@ -319,6 +324,11 @@ export default function OrdersUI({ screen }: { screen: Screen }) {
         products,
         details?.items ?? [],
       ),
+      lowStockWarnings: findLowStockWarnings(
+        orderDraft.items,
+        products,
+        details?.items ?? [],
+      ),
       valid: validItems && validAdjustments,
     };
   }, [orderDraft, products, details]);
@@ -511,6 +521,26 @@ export default function OrdersUI({ screen }: { screen: Screen }) {
             return (
               <li key={shortage.product_id}>
                 {product?.name ?? t.products} · {t.requested}: {shortage.requested} · {t.available}: {shortage.available}
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+    )}
+    {orderPreview.lowStockWarnings.length > 0 && (
+      <div
+        role="status"
+        aria-live="polite"
+        className="mb-5 rounded-xl border border-[#ead8a6] bg-[#fff9e9] px-4 py-3 text-sm text-[#765b22]"
+        data-testid="alert-low-order-stock"
+      >
+        <p className="font-bold">{t.lowStockWarning}</p>
+        <ul className="mt-2 list-inside list-disc space-y-1 text-xs">
+          {orderPreview.lowStockWarnings.map((warning) => {
+            const product = products.find((item) => item.id === warning.product_id);
+            return (
+              <li key={warning.product_id}>
+                {product?.name ?? t.products} · {t.requested}: {warning.requested} · {t.available}: {warning.available} · {t.remainingAfterOrder}: {warning.remaining} · {t.lowStockThreshold}: {warning.threshold}
               </li>
             );
           })}

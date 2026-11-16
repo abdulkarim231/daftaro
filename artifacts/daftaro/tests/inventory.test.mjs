@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   availableQuantityForOrder,
+  findLowStockWarnings,
   findStockShortages,
   isLowStock,
   parseInventoryCount,
@@ -73,5 +74,59 @@ test("reports requested quantities that exceed per-product stock", () => {
       products,
     ),
     [{ product_id: "product-a", requested: 4, available: 3 }],
+  );
+});
+
+test("warns separately when a valid order leaves stock at the low-stock threshold", () => {
+  const products = [
+    { id: "product-a", available_quantity: 8, low_stock_threshold: 3 },
+    { id: "product-b", available_quantity: 8, low_stock_threshold: 2 },
+  ];
+  const requested = [
+    { product_id: "product-a", quantity: 4 },
+    { product_id: "product-a", quantity: 1 },
+    { product_id: "product-b", quantity: 6 },
+  ];
+
+  assert.deepEqual(findStockShortages(requested, products), []);
+  assert.deepEqual(findLowStockWarnings(requested, products), [
+    { product_id: "product-a", requested: 5, available: 8, remaining: 3, threshold: 3 },
+    { product_id: "product-b", requested: 6, available: 8, remaining: 2, threshold: 2 },
+  ]);
+});
+
+test("uses stock reserved by the edited order and does not warn when stock is insufficient", () => {
+  const products = [
+    { id: "product-a", available_quantity: 2, low_stock_threshold: 3 },
+    { id: "product-b", available_quantity: 1, low_stock_threshold: 5 },
+  ];
+  const reservedItems = [{ product_id: "product-a", quantity: 4 }];
+
+  assert.deepEqual(
+    findLowStockWarnings(
+      [
+        { product_id: "product-a", quantity: 5 },
+        { product_id: "product-b", quantity: 2 },
+      ],
+      products,
+      reservedItems,
+    ),
+    [{ product_id: "product-a", requested: 5, available: 6, remaining: 1, threshold: 3 }],
+  );
+});
+
+test("does not warn above threshold or when no configured threshold exists", () => {
+  assert.deepEqual(
+    findLowStockWarnings(
+      [
+        { product_id: "product-a", quantity: 2 },
+        { product_id: "product-b", quantity: 1 },
+      ],
+      [
+        { id: "product-a", available_quantity: 8, low_stock_threshold: 5 },
+        { id: "product-b", available_quantity: 8 },
+      ],
+    ),
+    [],
   );
 });
