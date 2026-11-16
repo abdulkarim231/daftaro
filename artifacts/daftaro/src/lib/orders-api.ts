@@ -1,4 +1,5 @@
 import { supabase } from "./supabase";
+import { normalizeStripeTestPaymentLink } from "./payment-links";
 
 export type OrderStatus = "New" | "Processing" | "Completed" | "Cancelled";
 export type PaymentStatus = "Unpaid" | "Pending" | "Paid" | "Failed" | "Refunded";
@@ -355,4 +356,24 @@ export async function getInvoiceTokenForOrder(orderId: string): Promise<string |
     .maybeSingle();
   if (error) throw error;
   return data?.public_token ?? null;
+}
+
+export async function saveStripeTestPaymentLink(
+  orderId: string,
+  paymentUrl: string | null,
+): Promise<void> {
+  await requireCurrentUserId();
+  if (!UUID_PATTERN.test(orderId)) throw new Error("Order not found.");
+  if (
+    paymentUrl !== null
+    && normalizeStripeTestPaymentLink(paymentUrl) !== paymentUrl
+  ) {
+    throw new Error("A valid Stripe test-mode Payment Link is required.");
+  }
+
+  const { error } = await supabase.rpc("save_stripe_test_payment_link", {
+    p_order_id: orderId,
+    p_payment_url: paymentUrl,
+  });
+  if (error) throw error;
 }

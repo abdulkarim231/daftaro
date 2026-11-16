@@ -11,6 +11,7 @@ import {
   getBusinessProfile, getCustomers, getCustomerOrderHistory, getInvoiceForOrder,
   getInvoiceTokenForOrder, getOrderableProducts, getOrderDetails, getOrders,
   getPublicInvoice, requireCurrentUserId, saveCustomer, saveOrder, updateOrderStatus,
+  saveStripeTestPaymentLink,
   type BusinessProduct, type Customer, type OrderDetails, type OrderStatus,
   type OrderSummary, type PaymentStatus, type PublicInvoice,
 } from "../lib/orders-api";
@@ -19,6 +20,7 @@ import {
 } from "../lib/money";
 import { AppHeader } from "../components/app-header";
 import { useAppLanguage } from "../hooks/use-app-language";
+import { normalizeStripeTestPaymentLink } from "../lib/payment-links";
 import { supabase } from "../lib/supabase";
 
 type Lang = "ar" | "en";
@@ -53,7 +55,16 @@ const C = {
     saveStatus: "حفظ الحالة", statusSaved: "تم تحديث حالة الطلب.", notFound: "لم يتم العثور على الطلب.",
     invoiceTitle: "فاتورة", publicInvoice: "فاتورة إلكترونية", business: "النشاط التجاري",
     issued: "تاريخ الإصدار", invoiceNo: "رقم الفاتورة", orderNo: "رقم الطلب", billTo: "فاتورة إلى",
-    paymentLink: "رابط الدفع", copy: "نسخ الرابط", copied: "تم نسخ الرابط", whatsapp: "مشاركة عبر واتساب",
+    paymentLink: "رابط الدفع", paymentLinkUrlLabel: "رابط Stripe التجريبي",
+    paymentLinkUrlPlaceholder: "https://buy.stripe.com/test_...",
+    paymentLinkHelp: "أنشئي الرابط في Stripe بوضع الاختبار. امسحي الحقل ثم احفظي لإزالته. لا تتحدث حالة الدفع تلقائيًا.",
+    paymentLinkSave: "حفظ الرابط", paymentLinkRemove: "إزالة الرابط",
+    paymentLinkSaved: "تم حفظ رابط الدفع.", paymentLinkRemoved: "تمت إزالة رابط الدفع.",
+    paymentLinkSaveError: "تعذر حفظ الرابط. حاولي مجددًا.",
+    paymentLinkInvalid: "أدخلي رابط اختبار صالحًا يبدأ بـ https://buy.stripe.com/test_.",
+    payWithStripe: "الدفع عبر Stripe",
+    paymentLinkPublicNote: "رابط اختبار Stripe؛ لا يتم تحصيل أموال حقيقية.",
+    copy: "نسخ الرابط", copied: "تم نسخ الرابط", whatsapp: "مشاركة عبر واتساب",
     print: "طباعة أو حفظ PDF", publicMissing: "تعذر العثور على الفاتورة أو أن الرابط غير صالح.",
     ownerInvoice: "معاينة الفاتورة", totalDue: "الإجمالي المستحق", tryAgain: "إعادة المحاولة",
     toOrders: "العودة إلى الطلبات", back: "رجوع", language: "EN", private: "بياناتك محفوظة بأمان",
@@ -88,7 +99,16 @@ const C = {
     saveStatus: "Save status", statusSaved: "Order status updated.", notFound: "Order not found.",
     invoiceTitle: "Invoice", publicInvoice: "Digital invoice", business: "Business",
     issued: "Issued", invoiceNo: "Invoice number", orderNo: "Order number", billTo: "Bill to",
-    paymentLink: "Payment link", copy: "Copy link", copied: "Link copied", whatsapp: "Share on WhatsApp",
+    paymentLink: "Payment link", paymentLinkUrlLabel: "Stripe test payment link",
+    paymentLinkUrlPlaceholder: "https://buy.stripe.com/test_...",
+    paymentLinkHelp: "Create the link in Stripe test mode. Clear the field and save to remove it. Payment status will not update automatically.",
+    paymentLinkSave: "Save link", paymentLinkRemove: "Remove link",
+    paymentLinkSaved: "Payment link saved.", paymentLinkRemoved: "Payment link removed.",
+    paymentLinkSaveError: "We couldn't save the link. Please try again.",
+    paymentLinkInvalid: "Enter a valid Stripe test link beginning with https://buy.stripe.com/test_.",
+    payWithStripe: "Pay with Stripe",
+    paymentLinkPublicNote: "Stripe test link; no real money will be charged.",
+    copy: "Copy link", copied: "Link copied", whatsapp: "Share on WhatsApp",
     print: "Print or save PDF", publicMissing: "Invoice not found, or this link is invalid.",
     ownerInvoice: "Invoice preview", totalDue: "Total due", tryAgain: "Try again",
     toOrders: "Back to orders", back: "Back", language: "العربية", private: "Your records stay private",
@@ -352,6 +372,12 @@ export default function OrdersUI({ screen }: { screen: Screen }) {
     }
   }
 
+  async function savePaymentLink(paymentUrl: string | null) {
+    if (!params.id) throw new Error("Invoice order is not available.");
+    await saveStripeTestPaymentLink(params.id, paymentUrl);
+    await load();
+  }
+
   const control = "w-full rounded-[13px] border border-[#dfe5e8] bg-[#fffefa] px-3.5 py-3 text-sm text-[#1d2c3d] outline-none transition placeholder:text-[#a3acb5] focus:border-[#168d78] focus:ring-4 focus:ring-[#168d78]/10";
   const panel = "rounded-[22px] border border-[#e1e7e4] bg-[#fffefa] shadow-[0_12px_42px_rgba(28,48,56,.045)]";
   const header = (
@@ -436,13 +462,20 @@ export default function OrdersUI({ screen }: { screen: Screen }) {
     </div>}
   </>);
 
-  return <InvoiceScreen lang={lang} setLang={setLang} loading={loading} error={error} data={invoiceData} isPublic={Boolean(params.token)} invoiceToken={invoiceToken} retry={() => void load()} onSignOut={() => void signOut()} signingOut={signingOut} signOutError={signOutError} />;
+  return <InvoiceScreen lang={lang} setLang={setLang} loading={loading} error={error} data={invoiceData} isPublic={Boolean(params.token)} invoiceToken={invoiceToken} orderId={params.id} retry={() => void load()} onSignOut={() => void signOut()} signingOut={signingOut} signOutError={signOutError} onSavePaymentLink={savePaymentLink} />;
 }
 
-function InvoiceScreen({ lang, setLang, loading, error, data, isPublic, invoiceToken, retry, onSignOut, signingOut, signOutError }: { lang: Lang; setLang: (lang: Lang) => void; loading: boolean; error: boolean; data: PublicInvoice | null; isPublic: boolean; invoiceToken: string; retry: () => void; onSignOut: () => void; signingOut: boolean; signOutError: boolean }) {
+function InvoiceScreen({ lang, setLang, loading, error, data, isPublic, invoiceToken, orderId, retry, onSignOut, signingOut, signOutError, onSavePaymentLink }: { lang: Lang; setLang: (lang: Lang) => void; loading: boolean; error: boolean; data: PublicInvoice | null; isPublic: boolean; invoiceToken: string; orderId: string; retry: () => void; onSignOut: () => void; signingOut: boolean; signOutError: boolean; onSavePaymentLink: (paymentUrl: string | null) => Promise<void> }) {
   const rtl = lang === "ar"; const t = C[lang];
   const [copied, setCopied] = useState(false);
+  const [paymentLinkDraft, setPaymentLinkDraft] = useState(data?.invoice.payment_url ?? "");
+  const [savingPaymentLink, setSavingPaymentLink] = useState(false);
+  const [paymentLinkError, setPaymentLinkError] = useState("");
+  const [paymentLinkStatus, setPaymentLinkStatus] = useState("");
   const control = "rounded-xl border border-[#dfe5e7] bg-white px-3.5 py-2.5 text-xs font-bold text-[#526174] transition hover:border-[#d6b878]";
+  useEffect(() => {
+    setPaymentLinkDraft(data?.invoice.payment_url ?? "");
+  }, [data?.invoice.payment_url]);
   const ownerHeader = !isPublic && (
     <AppHeader
       language={lang}
@@ -482,6 +515,30 @@ function InvoiceScreen({ lang, setLang, loading, error, data, isPublic, invoiceT
       window.setTimeout(()=>setCopied(false),2200);
     }
   }
+  async function submitPaymentLink(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setPaymentLinkError("");
+    setPaymentLinkStatus("");
+    const trimmed = paymentLinkDraft.trim();
+    const normalized = trimmed ? normalizeStripeTestPaymentLink(trimmed) : null;
+    if (trimmed && !normalized) {
+      setPaymentLinkError(t.paymentLinkInvalid);
+      return;
+    }
+    if (!orderId) {
+      setPaymentLinkError(t.paymentLinkSaveError);
+      return;
+    }
+    setSavingPaymentLink(true);
+    try {
+      await onSavePaymentLink(normalized);
+      setPaymentLinkStatus(normalized ? t.paymentLinkSaved : t.paymentLinkRemoved);
+    } catch {
+      setPaymentLinkError(t.paymentLinkSaveError);
+    } finally {
+      setSavingPaymentLink(false);
+    }
+  }
   if (loading) return <main dir={rtl?"rtl":"ltr"} className="min-h-[100dvh] bg-[#f4f6f4]">
     {ownerHeader}{signOutErrorLine}<div className="px-4 py-8"><div className="mx-auto max-w-3xl space-y-4"><div className="h-10 w-48 animate-pulse rounded-xl bg-[#e6e9e4]"/><div className="h-[500px] animate-pulse rounded-[24px] bg-[#fffefa]"/></div></div>
   </main>;
@@ -514,6 +571,45 @@ function InvoiceScreen({ lang, setLang, loading, error, data, isPublic, invoiceT
         </div>
       </>
     )}
+    {!isPublic && (
+      <div className="print:hidden mx-auto max-w-[960px] px-4 sm:px-7">
+        <form onSubmit={(event) => void submitPaymentLink(event)} className="rounded-[18px] border border-[#e1e7e4] bg-[#fffefa] p-4 sm:p-5" data-testid="form-stripe-test-payment-link">
+          <label className="grid gap-2 text-xs font-bold text-[#526174]" htmlFor="stripe-test-payment-link">
+            {t.paymentLinkUrlLabel}
+            <input
+              id="stripe-test-payment-link"
+              type="url"
+              inputMode="url"
+              autoComplete="off"
+              dir="ltr"
+              value={paymentLinkDraft}
+              onChange={(event) => {
+                setPaymentLinkDraft(event.target.value);
+                setPaymentLinkError("");
+                setPaymentLinkStatus("");
+              }}
+              placeholder={t.paymentLinkUrlPlaceholder}
+              className="w-full rounded-xl border border-[#dfe5e7] bg-white px-3.5 py-3 text-start text-sm font-medium text-[#1d2c3d] outline-none focus:border-[#168d78] focus:ring-4 focus:ring-[#168d78]/10"
+              aria-describedby="stripe-test-payment-link-help"
+              data-testid="input-stripe-test-payment-link"
+            />
+          </label>
+          <p id="stripe-test-payment-link-help" className="mt-2 text-xs leading-5 text-[#788493]">{t.paymentLinkHelp}</p>
+          {paymentLinkError && <p role="alert" className="mt-2 text-xs font-semibold text-[#a34d43]" data-testid="error-stripe-test-payment-link">{paymentLinkError}</p>}
+          {paymentLinkStatus && <p role="status" className="mt-2 text-xs font-semibold text-[#197360]" data-testid="status-stripe-test-payment-link">{paymentLinkStatus}</p>}
+          <div className="mt-3 flex justify-end">
+            <button
+              type="submit"
+              disabled={savingPaymentLink}
+              className="rounded-xl bg-[#101b30] px-4 py-2.5 text-xs font-bold text-white transition hover:bg-[#1b2c49] disabled:opacity-60"
+              data-testid="button-save-stripe-test-payment-link"
+            >
+              {savingPaymentLink ? t.saving : data?.invoice.payment_url && !paymentLinkDraft.trim() ? t.paymentLinkRemove : t.paymentLinkSave}
+            </button>
+          </div>
+        </form>
+      </div>
+    )}
     <div className="mx-auto max-w-[960px] px-4 py-6 sm:px-7 sm:py-10">
       <div className="mb-5 flex items-center justify-between"><p className="text-[10px] font-extrabold tracking-[.17em] text-[#927a46]">{isPublic?t.publicInvoice:t.ownerInvoice}</p>{!isPublic && <Link href="/orders" className="text-xs font-bold text-[#647184] hover:text-[#167b70]" data-testid="link-invoice-back-orders">{t.toOrders}</Link>}</div>
       <article className="overflow-hidden rounded-[22px] border border-[#e1e7e4] bg-[#fffefa] shadow-[0_16px_50px_rgba(28,48,56,.06)] print:rounded-none print:border-0 print:shadow-none" data-testid="invoice-document">
@@ -521,7 +617,7 @@ function InvoiceScreen({ lang, setLang, loading, error, data, isPublic, invoiceT
         <div className="grid gap-5 border-b border-[#edf0ed] p-6 sm:grid-cols-2 sm:px-10 sm:py-7"><div><p className="mb-2 text-[10px] font-extrabold tracking-[.13em] text-[#927a46]">{t.billTo}</p><p className="font-extrabold">{data.customer.name}</p><p dir="ltr" className="mt-1 text-start text-sm text-[#788493]">{data.customer.phone}</p>{data.customer.email && <p dir="ltr" className="mt-1 text-start text-sm text-[#788493]">{data.customer.email}</p>}</div><div className="sm:text-end"><p className="mb-2 text-[10px] font-extrabold tracking-[.13em] text-[#927a46]">{t.orderNo}</p><p className="font-extrabold">{data.order.order_number}</p><p className="mt-1 text-sm text-[#788493]">{dateLabel(data.order.order_date,lang)}</p><div className="mt-3 flex flex-wrap gap-2 sm:justify-end"><span className="rounded-full bg-[#f3f4ef] px-3 py-1 text-[10px] font-bold">{labelFor(data.order.order_status,lang)}</span><span className="rounded-full bg-[#eaf5f0] px-3 py-1 text-[10px] font-bold text-[#197966]">{labelFor(data.order.payment_status,lang)}</span></div></div></div>
         <div className="px-5 py-5 sm:px-10 sm:py-7"><div className="hidden grid-cols-[1fr_80px_120px_120px] gap-3 border-b border-[#e8ece8] pb-3 text-[10px] font-extrabold text-[#788493] sm:grid"><span>{t.item}</span><span className="text-center">{t.quantity}</span><span className="text-end">{t.unitPrice}</span><span className="text-end">{t.total}</span></div><div className="divide-y divide-[#edf0ed]">{data.items.map((item,i)=><div key={`${item.product_name}-${i}`} className="grid grid-cols-[1fr_auto] gap-2 py-4 sm:grid-cols-[1fr_80px_120px_120px] sm:items-center sm:gap-3" data-testid={`invoice-item-${i}`}><div><p className="text-sm font-bold">{item.product_name}</p><p className="mt-1 text-[11px] text-[#788493] sm:hidden">{item.quantity} × {money(item.unit_price,data.order.currency_code,lang)}</p></div><span className="text-end text-sm font-bold sm:text-center">{item.quantity}</span><span className="hidden text-end text-sm text-[#788493] sm:inline">{money(item.unit_price,data.order.currency_code,lang)}</span><span className="text-end text-sm font-extrabold">{money(item.line_total,data.order.currency_code,lang)}</span></div>)}</div>
           <div className="ms-auto mt-5 max-w-sm space-y-2.5 border-t border-[#edf0ed] pt-5 text-sm"><div className="flex justify-between text-[#788493]"><span>{t.subtotal}</span>{money(data.order.subtotal,data.order.currency_code,lang)}</div><div className="flex justify-between text-[#788493]"><span>{t.discount}</span><span>−{money(data.order.discount,data.order.currency_code,lang)}</span></div><div className="flex justify-between text-[#788493]"><span>{t.shipping}</span>{money(data.order.shipping_fee,data.order.currency_code,lang)}</div><div className="flex justify-between border-t border-[#e8ece8] pt-3 text-base font-extrabold text-[#17283c]"><span>{t.totalDue}</span>{money(data.order.total,data.order.currency_code,lang)}</div></div>
-          {data.invoice.payment_url && <div className="mt-6 rounded-xl border border-[#e2e9e3] bg-[#f7f8f3] p-4"><p className="text-xs font-bold text-[#526174]">{t.paymentLink}</p><a href={data.invoice.payment_url} target="_blank" rel="noreferrer" className="mt-1 block break-all text-sm font-bold text-[#167b70] underline" data-testid="link-invoice-payment">{data.invoice.payment_url}</a></div>}
+          {data.invoice.payment_url && <div className="mt-6 rounded-xl border border-[#e2e9e3] bg-[#f7f8f3] p-4" data-testid="section-invoice-payment-link"><p className="text-xs font-bold text-[#526174]">{t.paymentLink}</p><a href={data.invoice.payment_url} target="_blank" rel="noopener noreferrer" aria-label={t.payWithStripe} className="mt-2 inline-flex rounded-xl bg-[#167b70] px-4 py-2.5 text-sm font-bold text-white no-underline" data-testid="link-invoice-payment">{t.payWithStripe}</a><p className="mt-2 text-[11px] text-[#788493]">{t.paymentLinkPublicNote}</p></div>}
         </div><footer className="border-t border-[#edf0ed] bg-[#f8f9f6] px-6 py-4 text-center text-[10px] text-[#85909d] sm:px-10">{rtl?"شكرًا لثقتكم":"Thank you for your business."}</footer>
       </article>
     </div>
