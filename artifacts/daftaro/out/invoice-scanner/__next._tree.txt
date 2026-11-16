@@ -1,4 +1,4 @@
-:HL["/_next/static/chunks/42rillg_k45my.css","style"]
+:HL["/_next/static/chunks/0_b2seec5xmic.css","style"]
 2:[["children",{"s":"__PAGE__","h":160}]]
 1:[["children",{"s":"invoice-scanner","h":96,"c":"$Q2"}]]
-0:{"b":"E0IFVceLr8zcronn0tKrs","t":{"t":{"s":"","h":80,"c":"$Q1"}}}
+0:{"b":"Fe-8WRujAfT6LOsmv7BAE","t":{"t":{"s":"","h":80,"c":"$Q1"}}}

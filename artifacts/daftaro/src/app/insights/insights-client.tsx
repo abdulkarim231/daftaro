@@ -10,6 +10,7 @@ import { PrintableAiReport } from "../../components/printable-ai-report";
 import { useAppLanguage } from "../../hooks/use-app-language";
 import { supabase } from "../../lib/supabase";
 import { getLocalizedAiAnalysis } from "../../lib/ai-narrative-display";
+import { formatMilliAmount, parseAmountToMilli } from "../../lib/money";
 import {
   askDaftaro,
   clearAiChatHistory,
@@ -29,6 +30,17 @@ import { buildPrintableAiReport } from "../../lib/printable-ai-report";
 type ProductOption = {
   id: string; name: string; selling_price: string | number; currency_code: string;
 };
+
+type MetricComparison = { label: string; delta?: string };
+
+function parseSignedMilli(value: string | null) {
+  if (value === null) return null;
+  const normalized = value.trim();
+  const isNegative = normalized.startsWith("-");
+  const amount = parseAmountToMilli(isNegative ? normalized.slice(1) : normalized);
+  if (amount === null) return null;
+  return isNegative ? -amount : amount;
+}
 
 const COPY = {
   ar: {
@@ -61,7 +73,13 @@ const COPY = {
     loadProductsError: "تعذر تحميل المنتجات.", answerError: "لم نتمكن من الإجابة من بيانات نشاطك.",
     noNarrative: "لم يُنتج النموذج شرحًا. الأرقام المعروضة محسوبة من بياناتك.",
     evidence: "الدليل", paidUnits: "وحدات مدفوعة", revenue: "الإيراد المدفوع", profit: "الربح التقديري",
-    noData: "لا توجد بيانات لهذا القسم في الفترة المختارة.", notEnough: "بيانات غير كافية لتقييم الأداء.",
+    noData: "لا توجد بيانات لهذا القسم في الفترة المختارة.",
+    previousZeroBaseline: "قيمة المؤشر في الفترة السابقة صفر؛ التغير:",
+    noValueInBothPeriods: "لا توجد قيمة لهذا المؤشر في الفترتين.",
+    marginPoints: "نقطة مئوية",
+    noCurrentMargin: "لا يمكن حساب هامش الفترة الحالية دون دخل موجب.",
+    noPreviousMargin: "لا يوجد دخل موجب في الفترة السابقة لمقارنة الهامش.",
+    slowNoConfirmed: "لا توجد منتجات مصنفة بطيئة الحركة حاليًا. تظهر هنا المنتجات التي حققت ٣ وحدات مدفوعة على الأقل سابقًا ثم انخفضت مبيعاتها إلى النصف أو أقل.",
     close: "إغلاق",
     printReport: "طباعة أو حفظ PDF",
   },
@@ -95,7 +113,13 @@ const COPY = {
     loadProductsError: "Products could not be loaded.", answerError: "We couldn't answer from your business data.",
     noNarrative: "The model didn't return an explanation. Figures shown are calculated from your data.",
     evidence: "Evidence", paidUnits: "Paid units", revenue: "Paid revenue", profit: "Estimated profit",
-    noData: "No data for this section in the selected period.", notEnough: "Not enough data to assess performance.",
+    noData: "No data for this section in the selected period.",
+    previousZeroBaseline: "The previous-period value was zero; absolute change:",
+    noValueInBothPeriods: "This metric had no recorded value in either period.",
+    marginPoints: "percentage points",
+    noCurrentMargin: "Current margin cannot be calculated without positive income.",
+    noPreviousMargin: "The previous period had no positive income for a margin comparison.",
+    slowNoConfirmed: "No products are currently classified as slow-moving. Products appear here after at least 3 paid units in the prior period followed by sales falling to half or less.",
     close: "Close",
     printReport: "Print or save PDF",
   },
@@ -451,8 +475,41 @@ export default function InsightsClient() {
   const panel = "rounded-[22px] border border-[#e3e8e5] bg-[#fffefa] p-5 shadow-[0_12px_42px_rgba(28,48,56,.035)] sm:p-6";
   const muted = "text-[#788594]";
 
-  function metricCard(label: string, value: string, change?: string | null) {
-    return <div className="rounded-[15px] bg-[#f5f7f3] p-4" key={label}><p className="text-xs font-medium text-[#778594]">{label}</p><p className="mt-2 text-lg font-extrabold" dir="ltr">{value}</p>{change !== undefined && <p className="mt-1 text-[11px] text-[#788594]">{change === null ? text.notEnough : `${change}% ${text.vsPrevious}`}</p>}</div>;
+  function financialComparison(
+    change: string | null,
+    current: string | null,
+    previous: string | null,
+    kind: "money" | "margin",
+  ): MetricComparison {
+    if (kind === "margin") {
+      if (change !== null) return { label: text.vsPrevious, delta: `${change} ${text.marginPoints}` };
+      if (current === null) return { label: text.noCurrentMargin };
+      return { label: text.noPreviousMargin };
+    }
+    if (change !== null) return { label: text.vsPrevious, delta: `${change}%` };
+    const currentMilli = parseSignedMilli(current);
+    const previousMilli = parseSignedMilli(previous);
+    if (currentMilli === null || previousMilli === null) return { label: text.noData };
+    if (currentMilli === 0n && previousMilli === 0n) return { label: text.noValueInBothPeriods };
+    return {
+      label: text.previousZeroBaseline,
+      delta: `${formatMilliAmount(currentMilli - previousMilli, language)} ${currency}`,
+    };
+  }
+
+  function metricCard(label: string, value: string, comparison?: MetricComparison) {
+    return (
+      <div className="rounded-[15px] bg-[#f5f7f3] p-4" key={label}>
+        <p className="text-xs font-medium text-[#778594]">{label}</p>
+        <p className="mt-2 text-lg font-extrabold" dir="ltr">{value}</p>
+        {comparison && (
+          <p className="mt-1 flex flex-wrap items-center gap-x-1.5 text-[11px] leading-5 text-[#788594]">
+            <span>{comparison.label}</span>
+            {comparison.delta && <b dir="ltr" className="font-bold text-[#536275]">{comparison.delta}</b>}
+          </p>
+        )}
+      </div>
+    );
   }
 
   return (
@@ -491,10 +548,26 @@ export default function InsightsClient() {
                 <span className="rounded-full bg-[#e8f3f0] px-3 py-1 text-[11px] font-bold text-[#12665e]">{currency}</span>
               </div>
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                {metricCard(text.income, formatAmount(analysis.financial.current.income, currency, language), analysis.financial.changes.incomePercent)}
-                {metricCard(text.expense, formatAmount(analysis.financial.current.expenses, currency, language), analysis.financial.changes.expensesPercent)}
-                {metricCard(text.net, formatAmount(analysis.financial.current.netProfit, currency, language), analysis.financial.changes.netProfitPercent)}
-                {metricCard(text.margin, formatPercent(analysis.financial.current.marginPercent, language), analysis.financial.changes.marginPoints)}
+                {metricCard(
+                  text.income,
+                  formatAmount(analysis.financial.current.income, currency, language),
+                  financialComparison(analysis.financial.changes.incomePercent, analysis.financial.current.income, analysis.financial.previous.income, "money"),
+                )}
+                {metricCard(
+                  text.expense,
+                  formatAmount(analysis.financial.current.expenses, currency, language),
+                  financialComparison(analysis.financial.changes.expensesPercent, analysis.financial.current.expenses, analysis.financial.previous.expenses, "money"),
+                )}
+                {metricCard(
+                  text.net,
+                  formatAmount(analysis.financial.current.netProfit, currency, language),
+                  financialComparison(analysis.financial.changes.netProfitPercent, analysis.financial.current.netProfit, analysis.financial.previous.netProfit, "money"),
+                )}
+                {metricCard(
+                  text.margin,
+                  formatPercent(analysis.financial.current.marginPercent, language),
+                  financialComparison(analysis.financial.changes.marginPoints, analysis.financial.current.marginPercent, analysis.financial.previous.marginPercent, "margin"),
+                )}
               </div>
                 <div className="mt-4 grid gap-3 sm:grid-cols-3">
                 <div className="rounded-xl border border-[#e8ece8] p-4"><p className="text-xs font-bold">{text.paidOrders}</p><p className="mt-2 text-lg font-extrabold" dir="ltr">{formatAmount(analysis.financial.paidOrderTotal, currency, language)}</p></div>
@@ -529,7 +602,7 @@ export default function InsightsClient() {
                   <p className={`mt-3 text-[11px] leading-5 ${muted}`}>{text.costBasis}</p>
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <div><h3 className="text-sm font-extrabold">{text.slow}</h3>{analysis.productPerformance.slowMoving.length === 0 ? <p className={`mt-2 text-xs ${muted}`}>{text.notEnough}</p> : <ul className="mt-2 space-y-1 text-xs">{analysis.productPerformance.slowMoving.map((product) => <li key={product.productId}>{product.name} · {product.previousPaidUnits} → {product.currentPaidUnits}</li>)}</ul>}</div>
+                  <div><h3 className="text-sm font-extrabold">{text.slow}</h3>{analysis.productPerformance.slowMoving.length === 0 ? <p className={`mt-2 text-xs leading-5 ${muted}`}>{text.slowNoConfirmed}</p> : <ul className="mt-2 space-y-1 text-xs">{analysis.productPerformance.slowMoving.map((product) => <li key={product.productId}>{product.name} · {product.previousPaidUnits} → {product.currentPaidUnits}</li>)}</ul>}</div>
                   <div><h3 className="text-sm font-extrabold">{text.noSales}</h3>{analysis.productPerformance.noSales.length === 0 ? <p className={`mt-2 text-xs ${muted}`}>{text.noData}</p> : <ul className="mt-2 space-y-1 text-xs">{analysis.productPerformance.noSales.map((product) => <li key={product.productId}>{product.name}</li>)}</ul>}</div>
                 </div>
               </div>
