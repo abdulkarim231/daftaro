@@ -14,6 +14,7 @@ const COPY = {
     readOnly: "عرض للقراءة فقط",
     privacy: "هذا الرابط يفتح تقريرًا محددًا فقط. لا يتيح الوصول إلى الحساب أو بيانات العملاء.",
     print: "طباعة أو حفظ PDF",
+    incomplete: "الرابط غير مكتمل. انسخي الرابط كاملًا، بما في ذلك الرمز بعد علامة #.",
     unavailable: "هذا الرابط غير صالح أو انتهت صلاحيته أو ألغاه صاحبه.",
     askOwner: "اطلب من صاحب التقرير إرسال رابط جديد.",
     setup: "مشاركة التقارير غير مهيأة بعد. أبلغ صاحب التطبيق بتطبيق تحديث قاعدة البيانات.",
@@ -25,6 +26,7 @@ const COPY = {
     readOnly: "Read-only view",
     privacy: "This link opens one report only. It does not provide account or customer-data access.",
     print: "Print or save PDF",
+    incomplete: "This link is incomplete. Copy the full link, including the token after #.",
     unavailable: "This link is invalid, expired, or has been revoked.",
     askOwner: "Ask the report owner to send a new link.",
     setup: "Report sharing is not set up yet. Ask the app owner to apply the database update.",
@@ -39,7 +41,7 @@ function validShareId(value: string | null): value is string {
 export default function SharedReportClient() {
   const [language, setLanguage] = useAppLanguage();
   const [report, setReport] = useState<PrintableAiReportData | null>(null);
-  const [error, setError] = useState<"unavailable" | "setup" | null>(null);
+  const [error, setError] = useState<"incomplete" | "unavailable" | "setup" | null>(null);
   const [loading, setLoading] = useState(true);
   const text = COPY[language as AiLanguage];
 
@@ -53,17 +55,23 @@ export default function SharedReportClient() {
     let active = true;
     const shareId = new URLSearchParams(window.location.search).get("id");
     const token = window.location.hash.slice(1);
-    window.history.replaceState(window.history.state, "", `${window.location.pathname}${window.location.search}`);
 
-    if (!validShareId(shareId) || !/^[A-Za-z0-9_-]{43}$/.test(token)) {
+    if (!validShareId(shareId)) {
       setError("unavailable");
+      setLoading(false);
+      return () => { active = false; };
+    }
+
+    if (!/^[A-Za-z0-9_-]{43}$/.test(token)) {
+      setError("incomplete");
       setLoading(false);
       return () => { active = false; };
     }
 
     void getSharedAiReport(shareId, token)
       .then((sharedReport) => {
-        if (active) setReport(sharedReport);
+        if (!active) return;
+        setReport(sharedReport);
       })
       .catch((cause) => {
         if (!active) return;
@@ -102,7 +110,7 @@ export default function SharedReportClient() {
         </div>
 
         {loading && <div className="mt-5 flex items-center gap-2 rounded-xl border border-[#e3e8e5] bg-white p-5 text-sm text-[#788594]" role="status" data-testid="shared-report-loading"><LoaderCircle size={17} className="animate-spin text-[#167b70]" />{text.loading}</div>}
-        {error && <div className="mt-5 flex items-start gap-2 rounded-xl border border-[#f0d2cc] bg-[#fff2ef] p-5 text-sm leading-6 text-[#9c4b43]" role="alert" data-testid="shared-report-error"><AlertCircle size={17} className="mt-1 shrink-0" /><div><p>{error === "setup" ? text.setup : text.unavailable}</p>{error === "unavailable" && <p className="mt-1 text-xs">{text.askOwner}</p>}</div></div>}
+        {error && <div className="mt-5 flex items-start gap-2 rounded-xl border border-[#f0d2cc] bg-[#fff2ef] p-5 text-sm leading-6 text-[#9c4b43]" role="alert" data-testid="shared-report-error"><AlertCircle size={17} className="mt-1 shrink-0" /><div><p>{error === "setup" ? text.setup : error === "incomplete" ? text.incomplete : text.unavailable}</p>{error === "unavailable" && <p className="mt-1 text-xs">{text.askOwner}</p>}</div></div>}
         {report && <div className="mt-5 flex justify-end">
           <button type="button" onClick={() => window.print()} className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-[#101b30] px-4 text-xs font-bold text-white" data-testid="button-print-shared-report"><Printer size={15} />{text.print}</button>
         </div>}
