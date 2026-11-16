@@ -81,6 +81,7 @@ export type AiAnalysis = {
     expenseCategories: Array<{ category: string; amount: string }>;
     paidOrderTotal: string;
     unpaidOrPendingOrderTotal: string;
+    failedOrRefundedOrderTotal: string;
     cancelledOrdersExcluded: true;
     ledgerAndOrdersKeptSeparate: true;
   };
@@ -111,7 +112,11 @@ export type AiAnalysis = {
 };
 
 function parseMilli(value: string | number): bigint {
-  const text = String(value).trim();
+  const text = String(value)
+    .trim()
+    .replace(/[٠-٩]/g, (digit) => String("٠١٢٣٤٥٦٧٨٩".indexOf(digit)))
+    .replace(/[۰-۹]/g, (digit) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(digit)))
+    .replace("٫", ".");
   if (!/^\d{1,11}(?:\.\d{1,3})?$/.test(text)) {
     throw new Error("Financial data contains an invalid amount.");
   }
@@ -239,6 +244,11 @@ function allocateOrderDiscount(
       remainder: numerator % subtotal,
     };
   });
+  const itemSubtotal = shares.reduce((total, share) => total + parseMilli(share.item.line_total), 0n);
+  if (itemSubtotal !== subtotal) {
+    for (const item of items) result.set(item.id, 0n);
+    return result;
+  }
   const allocated = shares.reduce((total, share) => total + share.value, 0n);
   let remaining = discount - allocated;
   shares.sort((a, b) => a.remainder === b.remainder
@@ -270,6 +280,7 @@ function buildPaidProductSales(
   const sales = new Map<string, { units: number; revenue: bigint; cost: bigint; orders: Set<string> }>();
   let paidOrderTotal = 0n;
   let unpaidOrderTotal = 0n;
+  let failedOrRefundedOrderTotal = 0n;
   let paidOrderDiscounts = 0n;
 
   for (const order of orders) {
@@ -283,8 +294,10 @@ function buildPaidProductSales(
     if (order.payment_status === "Paid") {
       paidOrderTotal += total;
       paidOrderDiscounts += parseMilli(order.discount);
-    } else {
+    } else if (order.payment_status === "Unpaid" || order.payment_status === "Pending") {
       unpaidOrderTotal += total;
+    } else {
+      failedOrRefundedOrderTotal += total;
     }
     const orderItems = byOrder.get(order.id) ?? [];
     if (order.payment_status !== "Paid" || orderItems.length === 0) continue;
@@ -306,7 +319,7 @@ function buildPaidProductSales(
       sales.set(item.product_id, current);
     }
   }
-  return { sales, paidOrderTotal, unpaidOrderTotal, paidOrderDiscounts };
+  return { sales, paidOrderTotal, unpaidOrderTotal, failedOrRefundedOrderTotal, paidOrderDiscounts };
 }
 
 export function buildAiAnalysis(input: AiAnalysisInput): AiAnalysis {
@@ -340,6 +353,7 @@ export function buildAiAnalysis(input: AiAnalysisInput): AiAnalysis {
   const prior30 = buildPaidProductSales(input.orders, input.items, input.products, addDays(today, -59), addDays(today, -30), input.currencyCode);
   const last30 = buildPaidProductSales(input.orders, input.items, input.products, addDays(today, -29), today, input.currencyCode);
   const last90 = buildPaidProductSales(input.orders, input.items, input.products, addDays(today, -89), today, input.currencyCode);
+  const lastPeriodOrderFacts = buildPaidProductSales(input.orders, input.items, input.products, from, to, input.currencyCode);
 
   for (const window of ["7d", "30d", "90d"] as const) {
     const days = window === "7d" ? 7 : window === "30d" ? 30 : 90;
@@ -534,8 +548,9 @@ export function buildAiAnalysis(input: AiAnalysisInput): AiAnalysis {
         marginPoints: current.margin === null || previous.margin === null ? null : percent(current.margin - previous.margin),
       },
       expenseCategories: current.categories.slice(0, 8).map((entry) => ({ category: entry.category, amount: amount(entry.amount) })),
-      paidOrderTotal: amount(buildPaidProductSales(input.orders, input.items, input.products, from, to, input.currencyCode).paidOrderTotal),
-      unpaidOrPendingOrderTotal: amount(buildPaidProductSales(input.orders, input.items, input.products, from, to, input.currencyCode).unpaidOrderTotal),
+      paidOrderTotal: amount(lastPeriodOrderFacts.paidOrderTotal),
+      unpaidOrPendingOrderTotal: amount(lastPeriodOrderFacts.unpaidOrderTotal),
+      failedOrRefundedOrderTotal: amount(lastPeriodOrderFacts.failedOrRefundedOrderTotal),
       cancelledOrdersExcluded: true,
       ledgerAndOrdersKeptSeparate: true,
     },
@@ -574,6 +589,7 @@ export function buildChatFacts(analysis: AiAnalysis) {
     expenseCategories: analysis.financial.expenseCategories,
     paidOrderRevenue: analysis.financial.paidOrderTotal,
     unpaidOrPendingOrderRevenue: analysis.financial.unpaidOrPendingOrderTotal,
+    failedOrRefundedOrderRevenue: analysis.financial.failedOrRefundedOrderTotal,
     bestSellers7d: analysis.productPerformance.bestSellers["7d"],
     bestSellers30d: analysis.productPerformance.bestSellers["30d"],
     bestSellers90d: analysis.productPerformance.bestSellers["90d"],
@@ -585,6 +601,7 @@ export function buildChatFacts(analysis: AiAnalysis) {
     dataRules: [
       "Ledger income and order revenue are separate sources and are never added together.",
       "Cancelled orders are excluded. Paid and unpaid or pending totals are separate.",
+      "Failed and refunded orders are separate from unpaid, pending, and paid totals.",
       "Product profit uses current saved costs, not historical cost snapshots.",
       "General operating and shipping expenses are not allocated to individual products.",
     ],
@@ -595,10 +612,15 @@ export function calculatePriceAdvice(
   product: AiProductRow,
   proposedPrice: string | number,
 ) {
-  if (!/^\d{1,11}(?:\.\d{1,3})?$/.test(String(proposedPrice).trim())) {
+  const normalizedPrice = String(proposedPrice)
+    .trim()
+    .replace(/[٠-٩]/g, (digit) => String("٠١٢٣٤٥٦٧٨٩".indexOf(digit)))
+    .replace(/[۰-۹]/g, (digit) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(digit)))
+    .replace("٫", ".");
+  if (!/^\d{1,11}(?:\.\d{1,3})?$/.test(normalizedPrice)) {
     throw new Error("Enter a selling price greater than zero.");
   }
-  const priceMilli = parseMilli(proposedPrice);
+  const priceMilli = parseMilli(normalizedPrice);
   if (priceMilli <= 0n) throw new Error("Enter a selling price greater than zero.");
   const currentPrice = parseMilli(product.selling_price);
   const totalCost = productCost(product);

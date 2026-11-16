@@ -16,7 +16,6 @@ import {
   Printer,
   RefreshCw,
   ShieldCheck,
-  Sparkles,
   Sun,
 } from "lucide-react";
 import {

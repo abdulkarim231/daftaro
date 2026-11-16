@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { ArrowUpRight, Bot, LoaderCircle, Sparkles } from "lucide-react";
-import { getAiAnalysis, type AiAnalysis, type AiLanguage } from "../lib/ai-api";
+import { getAiAnalysis, localizeAiError, type AiAnalysis, type AiLanguage } from "../lib/ai-api";
 import type { DashboardDateRange } from "../lib/dashboard-data";
 
 export function AiOverviewCard({
@@ -29,7 +29,7 @@ export function AiOverviewCard({
     try {
       setAnalysis(await getAiAnalysis(period, currency, language));
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : (ar ? "تعذر إعداد التحليل." : "Analysis could not be prepared."));
+      setError(caught instanceof Error ? localizeAiError(caught.message, language) : (ar ? "تعذر إعداد التحليل." : "Analysis could not be prepared."));
     } finally {
       setLoading(false);
     }
@@ -57,7 +57,7 @@ export function AiOverviewCard({
       </div>
       {analysis && (
         <div className="mt-4 rounded-xl border border-[#dfe9e4] bg-[#f6f9f6] p-4 text-sm leading-7 text-[#344258] dark:border-white/10 dark:bg-white/5 dark:text-[#d9dfeb]" data-testid="ai-overview-result">
-          <p>{analysis.ai.summary || (ar ? "لم تتوفر صياغة من الذكاء الاصطناعي. راجعي الأرقام الموثقة في صفحة الرؤى." : "No AI narrative was returned. Review the verified figures on the insights page.")}</p>
+          <p>{analysis.ai.summary || analysis.aiError || (ar ? "لم تتوفر صياغة من الذكاء الاصطناعي. راجعي الأرقام الموثقة في صفحة الرؤى." : "No AI narrative was returned. Review the verified figures on the insights page.")}</p>
           {analysis.ai.recommendations.length > 0 && (
             <ul className="mt-3 list-disc space-y-1 pe-5 text-xs">
               {analysis.ai.recommendations.slice(0, 3).map((item) => <li key={item.evidenceId}>{item.advice}</li>)}

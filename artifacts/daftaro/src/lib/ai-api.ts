@@ -25,6 +25,7 @@ export type AiAnalysis = {
     expenseCategories: Array<{ category: string; amount: string }>;
     paidOrderTotal: string;
     unpaidOrPendingOrderTotal: string;
+    failedOrRefundedOrderTotal: string;
     cancelledOrdersExcluded: true;
     ledgerAndOrdersKeptSeparate: true;
   };
@@ -61,6 +62,19 @@ export type AiPriceResult = {
   explanation: string;
   aiError?: string | null;
 };
+
+export function localizeAiError(message: string, language: AiLanguage) {
+  if (language === "en") return message;
+  if (/sign in|session is invalid/i.test(message)) return "سجّل الدخول مجددًا لاستخدام مساعد دفترُك.";
+  if (/too many|rate limit/i.test(message)) return "تجاوزت عدد الطلبات المسموح. حاول مجددًا بعد دقيقة.";
+  if (/busy|rate-limited|temporarily/i.test(message)) return "النماذج المجانية مشغولة الآن. حاول مجددًا بعد قليل.";
+  if (/timed out/i.test(message)) return "انتهت مهلة طلب الذكاء الاصطناعي. حاول مجددًا.";
+  if (/openrouter|AI is not configured/i.test(message)) return "لم يتوفر اتصال OpenRouter. تحقق من إعداد المفتاح السري في إعدادات المشروع.";
+  if (/price greater than zero/i.test(message)) return "أدخل سعر بيع أكبر من صفر.";
+  if (/product not found/i.test(message)) return "لم يتم العثور على المنتج.";
+  if (/currency/i.test(message)) return "اختر عملة مدعومة.";
+  return "تعذر إكمال طلب الذكاء الاصطناعي. حاول مجددًا.";
+}
 
 async function authenticatedFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
   const { data, error } = await supabase.auth.getSession();

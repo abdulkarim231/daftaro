@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Bot, CircleAlert, LoaderCircle, MessageCircle, RefreshCw, Send, Sparkles, Tag } from "lucide-react";
 import { AppHeader } from "../../components/app-header";
@@ -10,6 +10,7 @@ import {
   askDaftaro,
   getAiAnalysis,
   getAiPriceAdvice,
+  localizeAiError,
   type AiAnalysis,
   type AiChatMessage,
   type AiPeriod,
@@ -26,7 +27,7 @@ const COPY = {
     analyze: "تحديث التحليل", period: "الفترة", periods: { "7d": "٧ أيام", "30d": "٣٠ يومًا", "90d": "٩٠ يومًا" },
     currency: "العملة", loading: "جارٍ تحليل بياناتك…", error: "تعذر إعداد التحليل. أعد المحاولة.",
     financial: "ملخص مالي", income: "الدخل المسجل", expense: "المصروفات المسجلة", net: "صافي السجل", margin: "هامش السجل",
-    vsPrevious: "مقارنة بالفترة السابقة", paidOrders: "طلبات مدفوعة", unpaidOrders: "غير مدفوعة أو معلقة",
+    vsPrevious: "مقارنة بالفترة السابقة", paidOrders: "طلبات مدفوعة", unpaidOrders: "غير مدفوعة أو معلقة", failedRefunded: "فشلت أو استُردت",
     chartNote: "الحركات المالية والطلبات مصدران منفصلان؛ لا نجمعهما لتجنب احتساب الدخل مرتين.",
     bestSellers: "الأكثر مبيعًا", profitable: "الأكثر ربحًا", slow: "حركة أبطأ", noSales: "لا مبيعات مدفوعة حديثًا",
     restock: "مساعد إعادة التخزين", leaks: "مراجعة الربحية", discounts: "خصومات الطلبات المدفوعة خلال ٩٠ يومًا",
@@ -52,7 +53,7 @@ const COPY = {
     analyze: "Refresh analysis", period: "Period", periods: { "7d": "7 days", "30d": "30 days", "90d": "90 days" },
     currency: "Currency", loading: "Analyzing your data…", error: "Analysis couldn't be prepared. Try again.",
     financial: "Financial summary", income: "Ledger income", expense: "Ledger expenses", net: "Ledger net", margin: "Ledger margin",
-    vsPrevious: "compared with previous period", paidOrders: "Paid orders", unpaidOrders: "Unpaid or pending",
+    vsPrevious: "compared with previous period", paidOrders: "Paid orders", unpaidOrders: "Unpaid or pending", failedRefunded: "Failed or refunded",
     chartNote: "Ledger entries and orders stay separate to avoid counting income twice.",
     bestSellers: "Best sellers", profitable: "Most profitable", slow: "Slowing down", noSales: "No recent paid sales",
     restock: "Smart restocking", leaks: "Profit review", discounts: "Paid-order discounts in the last 90 days",
@@ -90,6 +91,7 @@ export default function InsightsClient() {
   const router = useRouter();
   const [language, setLanguage] = useAppLanguage();
   const [userId, setUserId] = useState<string | null>(null);
+  const [profileReady, setProfileReady] = useState(false);
   const [chatLoadedForUser, setChatLoadedForUser] = useState<string | null>(null);
   const [currency, setCurrency] = useState("KWD");
   const [period, setPeriod] = useState<AiPeriod>("30d");
@@ -109,6 +111,8 @@ export default function InsightsClient() {
   const [chatError, setChatError] = useState("");
   const rtl = language === "ar";
   const text = COPY[language];
+  const productLoadErrorText = useRef(text.loadProductsError);
+  productLoadErrorText.current = text.loadProductsError;
   const chatStorageKey = userId ? `daftaro-ai-chat:${userId}` : null;
 
   useEffect(() => {
@@ -128,6 +132,7 @@ export default function InsightsClient() {
       const id = data.session.user.id;
       if (!active) return;
       setUserId(id);
+      setProfileReady(false);
       const { data: profile, error: profileError } = await supabase
         .from("business_profiles")
         .select("currency_code")
@@ -138,13 +143,14 @@ export default function InsightsClient() {
         return;
       }
       setCurrency(profile.currency_code);
+      setProfileReady(true);
       const { data: productRows, error: productsError } = await supabase
         .from("business_products")
         .select("id,name,selling_price,currency_code")
         .eq("user_id", id)
         .order("name", { ascending: true });
       if (!active) return;
-      if (productsError) setProductLoadError(text.loadProductsError);
+      if (productsError) setProductLoadError(productLoadErrorText.current);
       else {
         const matching = (productRows ?? []).filter((product) => product.currency_code === profile.currency_code) as ProductOption[];
         setProducts(matching);
@@ -164,7 +170,7 @@ export default function InsightsClient() {
       active = false;
       listener.subscription.unsubscribe();
     };
-  }, [router, text.loadProductsError]);
+  }, [router]);
 
   useEffect(() => {
     if (!chatStorageKey) return;
@@ -202,15 +208,15 @@ export default function InsightsClient() {
     try {
       setAnalysis(await getAiAnalysis(period, currency, language));
     } catch (error) {
-      setAnalysisError(error instanceof Error ? error.message : text.error);
+      setAnalysisError(error instanceof Error ? localizeAiError(error.message, language) : text.error);
     } finally {
       setLoading(false);
     }
   }, [currency, language, period, text.error, userId]);
 
   useEffect(() => {
-    if (userId) void loadAnalysis();
-  }, [userId, loadAnalysis]);
+    if (userId && profileReady) void loadAnalysis();
+  }, [userId, profileReady, loadAnalysis]);
 
   const periodLabels = useMemo(() => text.periods, [text.periods]);
 
@@ -223,7 +229,7 @@ export default function InsightsClient() {
     try {
       setPriceResult(await getAiPriceAdvice(selectedProduct, newPrice, language));
     } catch (error) {
-      setPriceError(error instanceof Error ? error.message : text.error);
+      setPriceError(error instanceof Error ? localizeAiError(error.message, language) : text.error);
     } finally {
       setPriceLoading(false);
     }
@@ -242,7 +248,7 @@ export default function InsightsClient() {
       const result = await askDaftaro(next, currency, language);
       setMessages((current) => [...current, { role: "assistant" as const, content: result.answer }].slice(-40));
     } catch (error) {
-      setChatError(error instanceof Error ? error.message : text.answerError);
+      setChatError(error instanceof Error ? localizeAiError(error.message, language) : text.answerError);
       setMessages(next);
     } finally {
       setChatLoading(false);
@@ -307,14 +313,15 @@ export default function InsightsClient() {
                 {metricCard(text.net, formatAmount(analysis.financial.current.netProfit, currency, language), analysis.financial.changes.netProfitPercent)}
                 {metricCard(text.margin, formatPercent(analysis.financial.current.marginPercent, language), analysis.financial.changes.marginPoints)}
               </div>
-              <div className="mt-4 grid gap-3 md:grid-cols-2">
+                <div className="mt-4 grid gap-3 sm:grid-cols-3">
                 <div className="rounded-xl border border-[#e8ece8] p-4"><p className="text-xs font-bold">{text.paidOrders}</p><p className="mt-2 text-lg font-extrabold" dir="ltr">{formatAmount(analysis.financial.paidOrderTotal, currency, language)}</p></div>
                 <div className="rounded-xl border border-[#e8ece8] p-4"><p className="text-xs font-bold">{text.unpaidOrders}</p><p className="mt-2 text-lg font-extrabold" dir="ltr">{formatAmount(analysis.financial.unpaidOrPendingOrderTotal, currency, language)}</p></div>
+                  <div className="rounded-xl border border-[#e8ece8] p-4"><p className="text-xs font-bold">{text.failedRefunded}</p><p className="mt-2 text-lg font-extrabold" dir="ltr">{formatAmount(analysis.financial.failedOrRefundedOrderTotal, currency, language)}</p></div>
               </div>
               <p className={`mt-3 text-[11px] leading-5 ${muted}`}>{text.chartNote}</p>
               <div className="mt-5 rounded-[15px] border border-[#dfe9e4] bg-[#f6f9f6] p-4" data-testid="ai-analysis-narrative">
                 <div className="mb-2 flex items-center gap-2 text-[#167b70]"><Bot size={16} /><h3 className="text-xs font-extrabold">{rtl ? "تفسير الذكاء الاصطناعي" : "AI explanation"}</h3></div>
-                {analysis.ai.summary ? <p className="text-sm leading-7 text-[#344258]">{analysis.ai.summary}</p> : <p className="text-sm leading-7 text-[#778594]">{analysis.aiError || text.noNarrative}</p>}
+                {analysis.ai.summary ? <p className="text-sm leading-7 text-[#344258]">{analysis.ai.summary}</p> : <p className="text-sm leading-7 text-[#778594]">{analysis.aiError ? localizeAiError(analysis.aiError, language) : text.noNarrative}</p>}
                 {analysis.ai.recommendations.length > 0 && <ul className="mt-3 space-y-2">{analysis.ai.recommendations.map((item) => <li key={item.evidenceId} className="rounded-lg bg-white px-3 py-2 text-xs leading-6 text-[#344258]"><span className="me-2 text-[10px] font-bold text-[#167b70]">{text.evidence}</span>{item.advice}</li>)}</ul>}
               </div>
             </section>
@@ -369,12 +376,12 @@ export default function InsightsClient() {
           {products.length === 0 ? <p className={`text-sm ${muted}`}>{text.noProducts}</p> : (
             <form onSubmit={(event) => void submitPrice(event)} className="grid gap-3 sm:grid-cols-[1.4fr_1fr_auto] sm:items-end">
               <label className="grid gap-1.5 text-xs font-bold">{text.product}<select value={selectedProduct} onChange={(event) => changeProduct(event.target.value)} className="rounded-xl border border-[#dfe5e7] bg-white px-3 py-3 text-sm" data-testid="select-pricing-product">{products.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}</select></label>
-              <label className="grid gap-1.5 text-xs font-bold">{text.newPrice}<input type="number" min="0.001" step="0.001" required value={newPrice} onChange={(event) => setNewPrice(event.target.value)} className="rounded-xl border border-[#dfe5e7] bg-white px-3 py-3 text-sm" data-testid="input-pricing-new-price" /></label>
+          <label className="grid gap-1.5 text-xs font-bold">{text.newPrice}<input type="text" inputMode="decimal" maxLength={20} required value={newPrice} onChange={(event) => setNewPrice(event.target.value)} className="rounded-xl border border-[#dfe5e7] bg-white px-3 py-3 text-sm" data-testid="input-pricing-new-price" /></label>
               <button type="submit" disabled={priceLoading || !selectedProduct} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#101b30] px-4 text-xs font-bold text-white disabled:opacity-60" data-testid="button-run-pricing-advisor">{priceLoading ? <LoaderCircle size={14} className="animate-spin" /> : <Sparkles size={14} />}{priceLoading ? text.priceLoading : text.compare}</button>
             </form>
           )}
           {priceError && <p role="alert" className="mt-3 rounded-lg bg-[#fff1ed] px-3 py-2 text-xs text-[#a34d43]" data-testid="pricing-error">{priceError}</p>}
-          {priceResult && <div className="mt-5 rounded-xl border border-[#dfe9e4] bg-[#f6f9f6] p-4" data-testid="pricing-result"><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{metricCard(text.current, formatAmount(priceResult.facts.currentPrice, priceResult.facts.currencyCode, language))}{metricCard(text.proposed, formatAmount(priceResult.facts.proposedPrice, priceResult.facts.currencyCode, language))}{metricCard(text.unitCost, formatAmount(priceResult.facts.totalUnitCost, priceResult.facts.currencyCode, language))}{metricCard(text.changePerUnit, formatAmount(priceResult.facts.profitChangePerUnit, priceResult.facts.currencyCode, language))}</div><div className="mt-4 grid gap-3 text-xs sm:grid-cols-2"><p>{text.currentProfit}: <b dir="ltr">{formatAmount(priceResult.facts.currentUnitProfit, currency, language)}</b> · {formatPercent(priceResult.facts.currentMarginPercent, language)}</p><p>{text.proposedProfit}: <b dir="ltr">{formatAmount(priceResult.facts.proposedUnitProfit, currency, language)}</b> · {formatPercent(priceResult.facts.proposedMarginPercent, language)}</p></div><p className="mt-4 border-t border-[#dfe9e4] pt-3 text-sm leading-7">{priceResult.explanation || priceResult.aiError || text.noNarrative}</p></div>}
+          {priceResult && <div className="mt-5 rounded-xl border border-[#dfe9e4] bg-[#f6f9f6] p-4" data-testid="pricing-result"><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{metricCard(text.current, formatAmount(priceResult.facts.currentPrice, priceResult.facts.currencyCode, language))}{metricCard(text.proposed, formatAmount(priceResult.facts.proposedPrice, priceResult.facts.currencyCode, language))}{metricCard(text.unitCost, formatAmount(priceResult.facts.totalUnitCost, priceResult.facts.currencyCode, language))}{metricCard(text.changePerUnit, formatAmount(priceResult.facts.profitChangePerUnit, priceResult.facts.currencyCode, language))}</div><div className="mt-4 grid gap-3 text-xs sm:grid-cols-2"><p>{text.currentProfit}: <b dir="ltr">{formatAmount(priceResult.facts.currentUnitProfit, currency, language)}</b> · {formatPercent(priceResult.facts.currentMarginPercent, language)}</p><p>{text.proposedProfit}: <b dir="ltr">{formatAmount(priceResult.facts.proposedUnitProfit, currency, language)}</b> · {formatPercent(priceResult.facts.proposedMarginPercent, language)}</p></div><p className="mt-4 border-t border-[#dfe9e4] pt-3 text-sm leading-7">{priceResult.explanation || (priceResult.aiError ? localizeAiError(priceResult.aiError, language) : text.noNarrative)}</p></div>}
         </section>
 
         <section className={panel} data-testid="ask-daftaro">

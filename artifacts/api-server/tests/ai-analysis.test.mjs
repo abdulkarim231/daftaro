@@ -85,6 +85,8 @@ test("excludes cancelled orders and separates unpaid totals from paid revenue", 
       order(),
       order({ id: "cancelled", order_status: "Cancelled", total: "100.000" }),
       order({ id: "unpaid", payment_status: "Unpaid", total: "8.000" }),
+      order({ id: "failed", payment_status: "Failed", total: "2.000" }),
+      order({ id: "refunded", payment_status: "Refunded", total: "3.000" }),
     ],
     items: [
       item(),
@@ -94,6 +96,7 @@ test("excludes cancelled orders and separates unpaid totals from paid revenue", 
   });
   assert.equal(result.financial.paidOrderTotal, "19.000");
   assert.equal(result.financial.unpaidOrPendingOrderTotal, "8.000");
+  assert.equal(result.financial.failedOrRefundedOrderTotal, "5.000");
   assert.equal(result.productPerformance.bestSellers["30d"][0].paidUnits, 2);
 });
 
@@ -126,6 +129,7 @@ test("pricing advice calculates exact profit and margin from trusted product cos
   assert.equal(result.proposedUnitProfit, "6.500");
   assert.equal(result.proposedMarginPercent, "52.00");
   assert.equal(result.profitChangePerUnit, "2.500");
+  assert.equal(calculatePriceAdvice(product(), "١٢٫٥٠٠").proposedPrice, "12.500");
 });
 
 test("rejects malformed or negative stored amounts instead of inventing a figure", () => {

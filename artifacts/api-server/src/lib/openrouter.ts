@@ -8,11 +8,11 @@ const VERIFIED_FREE_FALLBACKS = [
 const OPENROUTER_ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
 
 export class OpenRouterError extends Error {
-  constructor(
-    message: string,
-    readonly status: number,
-  ) {
+  readonly status: number;
+
+  constructor(message: string, status: number) {
     super(message);
+    this.status = status;
     this.name = "OpenRouterError";
   }
 }
