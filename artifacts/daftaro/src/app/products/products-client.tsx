@@ -14,6 +14,7 @@ import {
   X,
 } from "lucide-react";
 import { supabase } from "../../lib/supabase";
+import { isLowStock, parseInventoryCount } from "../../lib/inventory";
 import {
   calculateProductMetrics,
   formatMarginHundredths,
@@ -34,6 +35,8 @@ type Product = {
   materials_cost: string | number;
   packaging_cost: string | number;
   other_cost: string | number;
+  available_quantity: number;
+  low_stock_threshold: number;
   currency_code: string;
   created_at: string;
   updated_at: string;
@@ -44,6 +47,8 @@ type ProductDraft = {
   materials_cost: string;
   packaging_cost: string;
   other_cost: string;
+  available_quantity: string;
+  low_stock_threshold: string;
 };
 type MetricInput = "selling_price" | "materials_cost" | "packaging_cost" | "other_cost";
 
@@ -53,6 +58,8 @@ const emptyDraft: ProductDraft = {
   materials_cost: "",
   packaging_cost: "",
   other_cost: "",
+  available_quantity: "0",
+  low_stock_threshold: "5",
 };
 
 const copy = {
@@ -79,6 +86,15 @@ const copy = {
     validationName: "اكتب اسمًا من حرف واحد إلى ١٢٠ حرفًا.",
     validationPrice: "أدخل سعر بيع أكبر من صفر وبحد أقصى ثلاث خانات عشرية.",
     validationCost: "أدخل كل تكلفة كقيمة صفر أو أكثر وبحد أقصى ثلاث خانات عشرية.",
+    availableQuantity: "الكمية المتوفرة",
+    lowStockThreshold: "نبّهني عند وصول الكمية إلى",
+    units: "وحدة",
+    lowStockTitle: "تنبيه انخفاض المخزون",
+    lowStockSummary: "منتجات وصلت إلى حد التنبيه أو أقل. حدّث كمياتها لتجنب نفادها.",
+    lowStockBadge: "مخزون منخفض",
+    outOfStock: "نفد المخزون",
+    stockHint: "يُخصم المخزون عند حفظ الطلب ويُعاد عند إلغائه.",
+    validationStock: "أدخل الكمية وحدّ التنبيه كأعداد صحيحة من صفر إلى ٢٬١٤٧٬٤٨٣٬٦٤٧.",
     close: "إغلاق", profile: "ملف النشاط", ledger: "سجل الحركات", dashboard: "لوحة التحكم", orders: "الطلبات", customers: "العملاء", signOut: "تسجيل الخروج",
     signingOut: "جارٍ تسجيل الخروج…", signOutError: "تعذر تسجيل الخروج. أعد المحاولة.",
     positive: "ربح", negative: "خسارة", language: "EN", noProducts: "لا توجد منتجات بعد",
@@ -107,6 +123,15 @@ const copy = {
     validationName: "Enter a name between 1 and 120 characters.",
     validationPrice: "Enter a selling price greater than zero with up to three decimal places.",
     validationCost: "Enter each cost as zero or more with up to three decimal places.",
+    availableQuantity: "Available quantity",
+    lowStockThreshold: "Alert me at or below",
+    units: "units",
+    lowStockTitle: "Low-stock alert",
+    lowStockSummary: "Products reached their alert level or lower. Update quantities before they run out.",
+    lowStockBadge: "Low stock",
+    outOfStock: "Out of stock",
+    stockHint: "Stock is reduced when an order is saved and restored if it is cancelled.",
+    validationStock: "Enter whole numbers from 0 to 2,147,483,647 for stock and its alert level.",
     close: "Close", profile: "Business profile", ledger: "Transactions", dashboard: "Dashboard", orders: "Orders", customers: "Customers", signOut: "Sign out",
     signingOut: "Signing out…", signOutError: "We couldn't sign you out. Please try again.",
     positive: "Profit", negative: "Loss", language: "عربي", noProducts: "No products yet",
@@ -136,6 +161,9 @@ export default function ProductsClient() {
   const [draft, setDraft] = useState<ProductDraft>(emptyDraft);
   const rtl = language === "ar";
   const text = copy[language];
+  const lowStockProducts = products.filter((product) =>
+    isLowStock(product.available_quantity, product.low_stock_threshold),
+  );
 
   useEffect(() => {
     document.documentElement.lang = language;
@@ -147,7 +175,7 @@ export default function ProductsClient() {
     setLoadError(false);
     const { data, error } = await supabase
       .from("business_products")
-      .select("id,user_id,name,selling_price,materials_cost,packaging_cost,other_cost,currency_code,created_at,updated_at")
+      .select("id,user_id,name,selling_price,materials_cost,packaging_cost,other_cost,available_quantity,low_stock_threshold,currency_code,created_at,updated_at")
       .eq("user_id", currentUserId)
       .order("created_at", { ascending: false });
     if (error) {
@@ -208,6 +236,8 @@ export default function ProductsClient() {
       materials_cost: String(product.materials_cost),
       packaging_cost: String(product.packaging_cost),
       other_cost: String(product.other_cost),
+      available_quantity: String(product.available_quantity),
+      low_stock_threshold: String(product.low_stock_threshold),
     });
     setFormError("");
     setNotice(null);
@@ -244,6 +274,12 @@ export default function ProductsClient() {
       setFormError(text.validationCost);
       return;
     }
+    const availableQuantity = parseInventoryCount(draft.available_quantity);
+    const lowStockThreshold = parseInventoryCount(draft.low_stock_threshold);
+    if (availableQuantity === null || lowStockThreshold === null) {
+      setFormError(text.validationStock);
+      return;
+    }
     const metrics = calculateProductMetrics(
       normalized.selling_price,
       normalized.materials_cost,
@@ -263,6 +299,8 @@ export default function ProductsClient() {
       materials_cost: milliToDatabaseValue(materials),
       packaging_cost: milliToDatabaseValue(packaging),
       other_cost: milliToDatabaseValue(other),
+      available_quantity: availableQuantity,
+      low_stock_threshold: lowStockThreshold,
       currency_code: editing?.currency_code ?? currency,
     };
     try {
@@ -373,6 +411,35 @@ export default function ProductsClient() {
           </div>
         )}
 
+        {!loading && !loadError && lowStockProducts.length > 0 && (
+          <aside
+            role="alert"
+            aria-live="polite"
+            data-testid="alert-low-stock"
+            className="mb-5 rounded-[16px] border border-[#f0d5b5] bg-[#fff8ed] px-4 py-4 text-[#805a2c] sm:px-5"
+          >
+            <div className="flex items-start gap-3">
+              <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-[12px] bg-[#ffedcf] text-[#a66d1e]">
+                <CircleAlert size={18} />
+              </span>
+              <div className="min-w-0">
+                <h2 className="text-sm font-extrabold" data-testid="text-low-stock-title">
+                  {text.lowStockTitle} · {lowStockProducts.length}
+                </h2>
+                <p className="mt-1 text-xs leading-5">{text.lowStockSummary}</p>
+                <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs font-semibold">
+                  {lowStockProducts.map((product) => (
+                    <li key={product.id} data-testid={`low-stock-product-${product.id}`}>
+                      {product.name}: {product.available_quantity} {text.units}
+                      {product.available_quantity === 0 ? ` · ${text.outOfStock}` : ` · ${text.lowStockBadge}`}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </aside>
+        )}
+
         <section className="overflow-hidden rounded-[22px] border border-[#e1e7e4] bg-[#fffefa] shadow-[0_12px_42px_rgba(28,48,56,.045)]">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#edf0ed] px-5 py-4 sm:px-6">
             <div className="flex items-center gap-3">
@@ -408,6 +475,7 @@ export default function ProductsClient() {
               {products.map((product) => {
                 const metrics = productMetrics(product);
                 const isPositive = metrics ? metrics.unitProfitMilli >= 0n : false;
+                const productIsLow = isLowStock(product.available_quantity, product.low_stock_threshold);
                 return (
                   <article key={product.id} data-testid={`row-product-${product.id}`} className="px-4 py-5 transition hover:bg-[#fbfcf8] sm:px-6">
                     <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -416,9 +484,14 @@ export default function ProductsClient() {
                         <div className="min-w-0">
                           <h3 className="break-words text-[14px] font-bold leading-5 text-[#25364a]" data-testid={`text-product-name-${product.id}`}>{product.name}</h3>
                           <p className="mt-1 text-[10px] text-[#8b969e]">{text.price}: {amount(product.selling_price, product.currency_code)}</p>
+                          {productIsLow && (
+                            <span data-testid={`badge-low-stock-${product.id}`} className="mt-2 inline-flex rounded-full bg-[#fff0dc] px-2.5 py-1 text-[10px] font-bold text-[#9a641e]">
+                              {product.available_quantity === 0 ? text.outOfStock : text.lowStockBadge}
+                            </span>
+                          )}
                         </div>
                       </div>
-                      <div className="grid flex-1 grid-cols-3 gap-2 sm:gap-4">
+                      <div className="grid flex-1 grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-4">
                         <div className="rounded-[13px] bg-[#f7f8f4] px-3 py-3">
                           <p className="text-[10px] font-medium text-[#87919b]">{text.totalCost}</p>
                           <p className="mt-1.5 text-[12px] font-bold text-[#344258]" data-testid={`text-total-cost-${product.id}`}>{metrics ? amount(metrics.totalCostMilli, product.currency_code) : "—"}</p>
@@ -430,6 +503,15 @@ export default function ProductsClient() {
                         <div className="rounded-[13px] bg-[#f7f8f4] px-3 py-3">
                           <p className="text-[10px] font-medium text-[#87919b]">{text.margin}</p>
                           <p className={`mt-1.5 text-[12px] font-bold ${isPositive ? "text-[#344258]" : "text-[#a34d43]"}`} data-testid={`text-profit-margin-${product.id}`}>{metrics ? formatMarginHundredths(metrics.marginHundredths, language) : "—"}</p>
+                        </div>
+                        <div className={`rounded-[13px] px-3 py-3 ${productIsLow ? "bg-[#fff5e8]" : "bg-[#f7f8f4]"}`}>
+                          <p className="text-[10px] font-medium text-[#87919b]">{text.availableQuantity}</p>
+                          <p className={`mt-1.5 text-[12px] font-bold ${productIsLow ? "text-[#9a641e]" : "text-[#344258]"}`} data-testid={`text-available-quantity-${product.id}`}>
+                            {product.available_quantity} {text.units}
+                          </p>
+                          <p className="mt-1 text-[9px] text-[#87919b]">
+                            {text.lowStockThreshold}: {product.low_stock_threshold}
+                          </p>
                         </div>
                       </div>
                       <div className="flex gap-2 lg:ms-2">
@@ -460,6 +542,39 @@ export default function ProductsClient() {
               <div>
                 <label htmlFor="product-name" className="mb-1.5 block text-xs font-bold text-[#344258]">{text.name}</label>
                 <input id="product-name" type="text" required maxLength={120} value={draft.name} onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))} placeholder={text.namePlaceholder} className={controlClass} data-testid="input-product-name" />
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label htmlFor="product-available-quantity" className="mb-1.5 block text-xs font-bold text-[#344258]">{text.availableQuantity}</label>
+                  <input
+                    id="product-available-quantity"
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="off"
+                    maxLength={10}
+                    value={draft.available_quantity}
+                    onChange={(event) => setDraft((current) => ({ ...current, available_quantity: event.target.value }))}
+                    className={controlClass}
+                    dir="auto"
+                    data-testid="input-available-quantity"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="product-low-stock-threshold" className="mb-1.5 block text-xs font-bold text-[#344258]">{text.lowStockThreshold}</label>
+                  <input
+                    id="product-low-stock-threshold"
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="off"
+                    maxLength={10}
+                    value={draft.low_stock_threshold}
+                    onChange={(event) => setDraft((current) => ({ ...current, low_stock_threshold: event.target.value }))}
+                    className={controlClass}
+                    dir="auto"
+                    data-testid="input-low-stock-threshold"
+                  />
+                </div>
+                <p className="text-[10px] leading-5 text-[#87919b] sm:col-span-2">{text.stockHint}</p>
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 {([
