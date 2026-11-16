@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: invoice-payments
+    description: Test-mode invoice payment links
 paths:
   /healthz:
     get:
@@ -24,6 +26,63 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /invoice-payment-links:
+    post:
+      operationId: createInvoicePaymentLink
+      tags: [invoice-payments]
+      summary: Create or reuse a payment link for an invoice
+      description: Uses the authenticated owner's saved order total and currency. The amount is never accepted from the client.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InvoicePaymentLinkInput"
+      responses:
+        "200":
+          description: The link was created, reused, or not needed for a zero-total invoice
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvoicePaymentLinkResult"
+        "400":
+          description: Invalid request or unsupported invoice currency
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          description: Authentication is missing or invalid
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: The order or its invoice was not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "409":
+          description: The invoice total changed while the link was being created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "502":
+          description: Stripe could not create the payment link
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "503":
+          description: Stripe test configuration is unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
 components:
   schemas:
     HealthStatus:
@@ -33,4 +92,38 @@ components:
           type: string
       required:
         - status
+    InvoicePaymentLinkInput:
+      type: object
+      additionalProperties: false
+      properties:
+        orderId:
+          type: string
+          format: uuid
+      required:
+        - orderId
+    InvoicePaymentLinkResult:
+      type: object
+      additionalProperties: false
+      properties:
+        paymentUrl:
+          type: ["string", "null"]
+          format: uri
+        status:
+          type: string
+          enum: [created, reused, no_payment_due]
+      required:
+        - paymentUrl
+        - status
+    ApiError:
+      type: object
+      additionalProperties: false
+      properties:
+        error:
+          type: string
+      required:
+        - error
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
 

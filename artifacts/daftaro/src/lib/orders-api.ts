@@ -1,5 +1,5 @@
 import { supabase } from "./supabase";
-import { normalizeStripeTestPaymentLink } from "./payment-links";
+import { createInvoicePaymentLink as requestInvoicePaymentLink } from "@workspace/api-client-react";
 
 export type OrderStatus = "New" | "Processing" | "Completed" | "Cancelled";
 export type PaymentStatus = "Unpaid" | "Pending" | "Paid" | "Failed" | "Refunded";
@@ -317,6 +317,19 @@ export async function saveOrder(input: SaveOrderInput): Promise<SaveOrderResult>
   return data as SaveOrderResult;
 }
 
+export async function createInvoicePaymentLink(orderId: string) {
+  if (!UUID_PATTERN.test(orderId)) throw new Error("Order not found.");
+  const { data, error } = await supabase.auth.getSession();
+  if (error) throw error;
+  const accessToken = data.session?.access_token;
+  if (!accessToken) throw new Error("Authentication required.");
+
+  return requestInvoicePaymentLink(
+    { orderId },
+    { headers: { Authorization: `Bearer ${accessToken}` } },
+  );
+}
+
 export async function updateOrderStatus(
   orderId: string,
   orderStatus: OrderStatus,
@@ -356,24 +369,4 @@ export async function getInvoiceTokenForOrder(orderId: string): Promise<string |
     .maybeSingle();
   if (error) throw error;
   return data?.public_token ?? null;
-}
-
-export async function saveStripeTestPaymentLink(
-  orderId: string,
-  paymentUrl: string | null,
-): Promise<void> {
-  await requireCurrentUserId();
-  if (!UUID_PATTERN.test(orderId)) throw new Error("Order not found.");
-  if (
-    paymentUrl !== null
-    && normalizeStripeTestPaymentLink(paymentUrl) !== paymentUrl
-  ) {
-    throw new Error("A valid Stripe test-mode Payment Link is required.");
-  }
-
-  const { error } = await supabase.rpc("save_stripe_test_payment_link", {
-    p_order_id: orderId,
-    p_payment_url: paymentUrl,
-  });
-  if (error) throw error;
 }

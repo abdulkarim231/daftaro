@@ -11,7 +11,7 @@ import {
   getBusinessProfile, getCustomers, getCustomerOrderHistory, getInvoiceForOrder,
   getInvoiceTokenForOrder, getOrderableProducts, getOrderDetails, getOrders,
   getPublicInvoice, requireCurrentUserId, saveCustomer, saveOrder, updateOrderStatus,
-  saveStripeTestPaymentLink,
+  createInvoicePaymentLink,
   type BusinessProduct, type Customer, type OrderDetails, type OrderStatus,
   type OrderSummary, type PaymentStatus, type PublicInvoice,
 } from "../lib/orders-api";
@@ -20,7 +20,6 @@ import {
 } from "../lib/money";
 import { AppHeader } from "../components/app-header";
 import { useAppLanguage } from "../hooks/use-app-language";
-import { normalizeStripeTestPaymentLink } from "../lib/payment-links";
 import { supabase } from "../lib/supabase";
 
 type Lang = "ar" | "en";
@@ -55,13 +54,15 @@ const C = {
     saveStatus: "حفظ الحالة", statusSaved: "تم تحديث حالة الطلب.", notFound: "لم يتم العثور على الطلب.",
     invoiceTitle: "فاتورة", publicInvoice: "فاتورة إلكترونية", business: "النشاط التجاري",
     issued: "تاريخ الإصدار", invoiceNo: "رقم الفاتورة", orderNo: "رقم الطلب", billTo: "فاتورة إلى",
-    paymentLink: "رابط الدفع", paymentLinkUrlLabel: "رابط Stripe التجريبي",
-    paymentLinkUrlPlaceholder: "https://buy.stripe.com/test_...",
-    paymentLinkHelp: "أنشئي الرابط في Stripe بوضع الاختبار. امسحي الحقل ثم احفظي لإزالته. لا تتحدث حالة الدفع تلقائيًا.",
-    paymentLinkSave: "حفظ الرابط", paymentLinkRemove: "إزالة الرابط",
-    paymentLinkSaved: "تم حفظ رابط الدفع.", paymentLinkRemoved: "تمت إزالة رابط الدفع.",
-    paymentLinkSaveError: "تعذر حفظ الرابط. حاولي مجددًا.",
-    paymentLinkInvalid: "أدخلي رابط اختبار صالحًا يبدأ بـ https://buy.stripe.com/test_.",
+    paymentLink: "رابط الدفع",
+    paymentLinkAutoHelp: "يُنشأ الرابط تلقائيًا من الإجمالي النهائي المحفوظ في الفاتورة. لا تتحدث حالة الدفع تلقائيًا.",
+    paymentLinkReady: "رابط الدفع جاهز من إجمالي الفاتورة.",
+    paymentLinkNeedsRetry: "الرابط غير جاهز بعد. أعيدي المحاولة لإنشائه من الإجمالي المحفوظ.",
+    generatePaymentLink: "إنشاء رابط الدفع",
+    generatingPaymentLink: "جارٍ إنشاء الرابط…",
+    paymentLinkGenerationFailed: "تعذر إنشاء الرابط. الطلب محفوظ؛ حاولي مجددًا.",
+    paymentLinkCleanupPending: "لا يوجد مبلغ مستحق، لكن تعذّر إيقاف رابط الدفع السابق.",
+    noPaymentDue: "لا يوجد مبلغ مستحق، لذلك لا حاجة إلى رابط دفع.",
     payWithStripe: "الدفع عبر Stripe",
     paymentLinkPublicNote: "رابط اختبار Stripe؛ لا يتم تحصيل أموال حقيقية.",
     copy: "نسخ الرابط", copied: "تم نسخ الرابط", whatsapp: "مشاركة عبر واتساب",
@@ -99,13 +100,15 @@ const C = {
     saveStatus: "Save status", statusSaved: "Order status updated.", notFound: "Order not found.",
     invoiceTitle: "Invoice", publicInvoice: "Digital invoice", business: "Business",
     issued: "Issued", invoiceNo: "Invoice number", orderNo: "Order number", billTo: "Bill to",
-    paymentLink: "Payment link", paymentLinkUrlLabel: "Stripe test payment link",
-    paymentLinkUrlPlaceholder: "https://buy.stripe.com/test_...",
-    paymentLinkHelp: "Create the link in Stripe test mode. Clear the field and save to remove it. Payment status will not update automatically.",
-    paymentLinkSave: "Save link", paymentLinkRemove: "Remove link",
-    paymentLinkSaved: "Payment link saved.", paymentLinkRemoved: "Payment link removed.",
-    paymentLinkSaveError: "We couldn't save the link. Please try again.",
-    paymentLinkInvalid: "Enter a valid Stripe test link beginning with https://buy.stripe.com/test_.",
+    paymentLink: "Payment link",
+    paymentLinkAutoHelp: "The link is generated from the saved final invoice total. Payment status does not update automatically.",
+    paymentLinkReady: "The payment link matches the invoice total.",
+    paymentLinkNeedsRetry: "The link is not ready yet. Retry to create it from the saved total.",
+    generatePaymentLink: "Create payment link",
+    generatingPaymentLink: "Creating link…",
+    paymentLinkGenerationFailed: "We couldn't create the link. The order is saved; try again.",
+    paymentLinkCleanupPending: "Nothing is due, but the previous payment link could not be disabled.",
+    noPaymentDue: "Nothing is due, so no payment link is needed.",
     payWithStripe: "Pay with Stripe",
     paymentLinkPublicNote: "Stripe test link; no real money will be charged.",
     copy: "Copy link", copied: "Link copied", whatsapp: "Share on WhatsApp",
@@ -181,6 +184,8 @@ export default function OrdersUI({ screen }: { screen: Screen }) {
   const [signOutError, setSignOutError] = useState(false);
   const [notice, setNotice] = useState("");
   const [formError, setFormError] = useState("");
+  const [generatingPaymentLink, setGeneratingPaymentLink] = useState(false);
+  const [paymentLinkError, setPaymentLinkError] = useState("");
   const [orderDraft, setOrderDraft] = useState({ customer_id: "", items: [{ product_id: "", quantity: 1 }], discount: "0", shipping_fee: "0", order_date: localDate(), order_status: "New" as OrderStatus, payment_status: "Unpaid" as PaymentStatus });
   const [statusDraft, setStatusDraft] = useState<{ order_status: OrderStatus; payment_status: PaymentStatus }>({ order_status: "New", payment_status: "Unpaid" });
   const t = C[lang];
@@ -342,7 +347,11 @@ export default function OrdersUI({ screen }: { screen: Screen }) {
     setBusy(true);
     try {
       const result = await saveOrder({ ...(details ? { order_id: details.id } : {}), customer_id: orderDraft.customer_id, items, discount: milliToDatabaseValue(discount), shipping_fee: milliToDatabaseValue(shipping), order_date: orderDraft.order_date, order_status: orderDraft.order_status, payment_status: orderDraft.payment_status });
-      setNotice(t.orderSaved);
+      try {
+        await createInvoicePaymentLink(result.order_id);
+      } catch {
+        // The order is already saved. The details screen offers a safe retry.
+      }
       router.push(`/order-details?id=${encodeURIComponent(result.order_id)}`);
     } catch { setFormError(t.saveError); } finally { setBusy(false); }
   }
@@ -372,10 +381,17 @@ export default function OrdersUI({ screen }: { screen: Screen }) {
     }
   }
 
-  async function savePaymentLink(paymentUrl: string | null) {
-    if (!params.id) throw new Error("Invoice order is not available.");
-    await saveStripeTestPaymentLink(params.id, paymentUrl);
-    await load();
+  async function retryPaymentLink(orderId: string) {
+    setPaymentLinkError("");
+    setGeneratingPaymentLink(true);
+    try {
+      await createInvoicePaymentLink(orderId);
+      setDetails(await getOrderDetails(orderId));
+    } catch {
+      setPaymentLinkError(t.paymentLinkGenerationFailed);
+    } finally {
+      setGeneratingPaymentLink(false);
+    }
   }
 
   const control = "w-full rounded-[13px] border border-[#dfe5e8] bg-[#fffefa] px-3.5 py-3 text-sm text-[#1d2c3d] outline-none transition placeholder:text-[#a3acb5] focus:border-[#168d78] focus:ring-4 focus:ring-[#168d78]/10";
@@ -457,25 +473,55 @@ export default function OrdersUI({ screen }: { screen: Screen }) {
         <div className="p-5 sm:p-6"><h3 className="mb-4 text-sm font-extrabold">{t.lineItems}</h3><div className="divide-y divide-[#edf0ed]">{details.items.map((item)=><div key={item.id} className="grid grid-cols-[1fr_auto] gap-3 py-3" data-testid={`order-item-${item.id}`}><div><p className="text-sm font-bold">{item.product_name}</p><p className="mt-1 text-xs text-[#788493]">{item.quantity} × {money(item.unit_price,details.currency_code,lang)}</p></div><p className="text-sm font-extrabold">{money(item.line_total,details.currency_code,lang)}</p></div>)}</div><div className="mt-4 space-y-2 border-t border-[#edf0ed] pt-4 text-sm"><div className="flex justify-between text-[#788493]"><span>{t.subtotal}</span>{money(details.subtotal,details.currency_code,lang)}</div><div className="flex justify-between text-[#788493]"><span>{t.discount}</span><span>−{money(details.discount,details.currency_code,lang)}</span></div><div className="flex justify-between text-[#788493]"><span>{t.shipping}</span>{money(details.shipping_fee,details.currency_code,lang)}</div><div className="flex justify-between border-t border-[#edf0ed] pt-3 text-base font-extrabold"><span>{t.total}</span>{money(details.total,details.currency_code,lang)}</div></div></div>
       </section>
        <aside className="space-y-4"><section className={`${panel} p-5 sm:p-6`}><h2 className="mb-4 text-sm font-extrabold">{t.updateStatus}</h2><label className="mb-3 grid gap-1.5 text-xs font-bold">{t.status}<select disabled={details.order_status==="Cancelled"} value={statusDraft.order_status} onChange={(e)=>setStatusDraft({...statusDraft,order_status:e.target.value as OrderStatus})} className={control} aria-label={t.status} data-testid="select-order-status">{orderStatuses.map((v)=><option key={v} value={v}>{labelFor(v,lang)}</option>)}</select></label><label className="grid gap-1.5 text-xs font-bold">{t.payment}<select value={statusDraft.payment_status} onChange={(e)=>setStatusDraft({...statusDraft,payment_status:e.target.value as PaymentStatus})} className={control} aria-label={t.payment} data-testid="select-payment-status">{paymentStatuses.map((v)=><option key={v} value={v}>{labelFor(v,lang)}</option>)}</select></label>{formError && <p role="alert" className="mt-3 text-xs text-[#a34d43]" data-testid="error-status-update">{formError}</p>}<button type="button" disabled={busy} onClick={()=>void updateStatus()} className="mt-4 w-full rounded-xl bg-[#101b30] py-3 text-sm font-bold text-white disabled:opacity-60" data-testid="button-save-status">{busy?t.saving:t.saveStatus}</button>{details.order_status!=="Cancelled" && <button type="button" disabled={busy} onClick={()=>void updateStatus("Cancelled")} className="mt-2 w-full rounded-xl border border-[#ead2ce] py-3 text-sm font-bold text-[#a34d43] disabled:opacity-60" data-testid="button-cancel-order">{t.cancelOrder}</button>}</section>
-        {details.invoice && <section className={`${panel} p-5 sm:p-6`}><p className="text-xs text-[#788493]">{t.invoiceNo}</p><p className="mt-1 font-extrabold">{details.invoice.invoice_number}</p><Link href={`/invoice?order=${encodeURIComponent(details.id)}`} className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[#dfe5e7] px-4 py-3 text-sm font-bold text-[#526174] hover:border-[#d6b878]" data-testid="link-order-invoice"><FileText size={16}/>{t.viewInvoice}</Link></section>}
+        {details.invoice && <section className={`${panel} p-5 sm:p-6`}>
+          <p className="text-xs text-[#788493]">{t.invoiceNo}</p>
+          <p className="mt-1 font-extrabold">{details.invoice.invoice_number}</p>
+          {(parseAmountToMilli(String(details.total)) ?? 0n) <= 0n && details.invoice.payment_provider_reference?.startsWith("plink_") ? (
+            <div className="mt-3">
+              <p className="text-xs leading-5 text-[#a34d43]" role="alert" data-testid="status-payment-link-cleanup-pending">{t.paymentLinkCleanupPending}</p>
+              <button
+                type="button"
+                disabled={generatingPaymentLink}
+                onClick={() => void retryPaymentLink(details.id)}
+                className="mt-3 w-full rounded-xl border border-[#dfe5e7] px-4 py-3 text-sm font-bold text-[#526174] disabled:opacity-60"
+                data-testid="button-retry-payment-link-cleanup"
+              >
+                {generatingPaymentLink ? t.generatingPaymentLink : t.tryAgain}
+              </button>
+            </div>
+          ) : (parseAmountToMilli(String(details.total)) ?? 0n) <= 0n ? (
+            <p className="mt-3 rounded-xl bg-[#f7f8f3] px-3 py-2.5 text-xs text-[#526174]" role="status" data-testid="status-no-payment-due">{t.noPaymentDue}</p>
+          ) : details.invoice.payment_url && details.invoice.payment_provider_reference?.startsWith("plink_") ? (
+            <p className="mt-3 rounded-xl bg-[#eaf6f1] px-3 py-2.5 text-xs text-[#197360]" role="status" data-testid="status-payment-link-ready">{t.paymentLinkReady}</p>
+          ) : (
+            <div className="mt-3">
+              <p className="text-xs leading-5 text-[#788493]" role={paymentLinkError ? "alert" : "status"} data-testid="status-payment-link-needs-retry">
+                {paymentLinkError || t.paymentLinkNeedsRetry}
+              </p>
+              <button
+                type="button"
+                disabled={generatingPaymentLink}
+                onClick={() => void retryPaymentLink(details.id)}
+                className="mt-3 w-full rounded-xl bg-[#167b70] px-4 py-3 text-sm font-bold text-white disabled:opacity-60"
+                data-testid="button-create-payment-link"
+              >
+                {generatingPaymentLink ? t.generatingPaymentLink : t.generatePaymentLink}
+              </button>
+            </div>
+          )}
+          <Link href={`/invoice?order=${encodeURIComponent(details.id)}`} className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[#dfe5e7] px-4 py-3 text-sm font-bold text-[#526174] hover:border-[#d6b878]" data-testid="link-order-invoice"><FileText size={16}/>{t.viewInvoice}</Link>
+        </section>}
       </aside>
     </div>}
   </>);
 
-  return <InvoiceScreen lang={lang} setLang={setLang} loading={loading} error={error} data={invoiceData} isPublic={Boolean(params.token)} invoiceToken={invoiceToken} orderId={params.id} retry={() => void load()} onSignOut={() => void signOut()} signingOut={signingOut} signOutError={signOutError} onSavePaymentLink={savePaymentLink} />;
+  return <InvoiceScreen lang={lang} setLang={setLang} loading={loading} error={error} data={invoiceData} isPublic={Boolean(params.token)} invoiceToken={invoiceToken} orderId={params.id} retry={() => void load()} onSignOut={() => void signOut()} signingOut={signingOut} signOutError={signOutError} />;
 }
 
-function InvoiceScreen({ lang, setLang, loading, error, data, isPublic, invoiceToken, orderId, retry, onSignOut, signingOut, signOutError, onSavePaymentLink }: { lang: Lang; setLang: (lang: Lang) => void; loading: boolean; error: boolean; data: PublicInvoice | null; isPublic: boolean; invoiceToken: string; orderId: string; retry: () => void; onSignOut: () => void; signingOut: boolean; signOutError: boolean; onSavePaymentLink: (paymentUrl: string | null) => Promise<void> }) {
+function InvoiceScreen({ lang, setLang, loading, error, data, isPublic, invoiceToken, orderId, retry, onSignOut, signingOut, signOutError }: { lang: Lang; setLang: (lang: Lang) => void; loading: boolean; error: boolean; data: PublicInvoice | null; isPublic: boolean; invoiceToken: string; orderId: string; retry: () => void; onSignOut: () => void; signingOut: boolean; signOutError: boolean }) {
   const rtl = lang === "ar"; const t = C[lang];
   const [copied, setCopied] = useState(false);
-  const [paymentLinkDraft, setPaymentLinkDraft] = useState(data?.invoice.payment_url ?? "");
-  const [savingPaymentLink, setSavingPaymentLink] = useState(false);
-  const [paymentLinkError, setPaymentLinkError] = useState("");
-  const [paymentLinkStatus, setPaymentLinkStatus] = useState("");
   const control = "rounded-xl border border-[#dfe5e7] bg-white px-3.5 py-2.5 text-xs font-bold text-[#526174] transition hover:border-[#d6b878]";
-  useEffect(() => {
-    setPaymentLinkDraft(data?.invoice.payment_url ?? "");
-  }, [data?.invoice.payment_url]);
   const ownerHeader = !isPublic && (
     <AppHeader
       language={lang}
@@ -515,30 +561,6 @@ function InvoiceScreen({ lang, setLang, loading, error, data, isPublic, invoiceT
       window.setTimeout(()=>setCopied(false),2200);
     }
   }
-  async function submitPaymentLink(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setPaymentLinkError("");
-    setPaymentLinkStatus("");
-    const trimmed = paymentLinkDraft.trim();
-    const normalized = trimmed ? normalizeStripeTestPaymentLink(trimmed) : null;
-    if (trimmed && !normalized) {
-      setPaymentLinkError(t.paymentLinkInvalid);
-      return;
-    }
-    if (!orderId) {
-      setPaymentLinkError(t.paymentLinkSaveError);
-      return;
-    }
-    setSavingPaymentLink(true);
-    try {
-      await onSavePaymentLink(normalized);
-      setPaymentLinkStatus(normalized ? t.paymentLinkSaved : t.paymentLinkRemoved);
-    } catch {
-      setPaymentLinkError(t.paymentLinkSaveError);
-    } finally {
-      setSavingPaymentLink(false);
-    }
-  }
   if (loading) return <main dir={rtl?"rtl":"ltr"} className="min-h-[100dvh] bg-[#f4f6f4]">
     {ownerHeader}{signOutErrorLine}<div className="px-4 py-8"><div className="mx-auto max-w-3xl space-y-4"><div className="h-10 w-48 animate-pulse rounded-xl bg-[#e6e9e4]"/><div className="h-[500px] animate-pulse rounded-[24px] bg-[#fffefa]"/></div></div>
   </main>;
@@ -573,41 +595,19 @@ function InvoiceScreen({ lang, setLang, loading, error, data, isPublic, invoiceT
     )}
     {!isPublic && (
       <div className="print:hidden mx-auto max-w-[960px] px-4 sm:px-7">
-        <form onSubmit={(event) => void submitPaymentLink(event)} className="rounded-[18px] border border-[#e1e7e4] bg-[#fffefa] p-4 sm:p-5" data-testid="form-stripe-test-payment-link">
-          <label className="grid gap-2 text-xs font-bold text-[#526174]" htmlFor="stripe-test-payment-link">
-            {t.paymentLinkUrlLabel}
-            <input
-              id="stripe-test-payment-link"
-              type="url"
-              inputMode="url"
-              autoComplete="off"
-              dir="ltr"
-              value={paymentLinkDraft}
-              onChange={(event) => {
-                setPaymentLinkDraft(event.target.value);
-                setPaymentLinkError("");
-                setPaymentLinkStatus("");
-              }}
-              placeholder={t.paymentLinkUrlPlaceholder}
-              className="w-full rounded-xl border border-[#dfe5e7] bg-white px-3.5 py-3 text-start text-sm font-medium text-[#1d2c3d] outline-none focus:border-[#168d78] focus:ring-4 focus:ring-[#168d78]/10"
-              aria-describedby="stripe-test-payment-link-help"
-              data-testid="input-stripe-test-payment-link"
-            />
-          </label>
-          <p id="stripe-test-payment-link-help" className="mt-2 text-xs leading-5 text-[#788493]">{t.paymentLinkHelp}</p>
-          {paymentLinkError && <p role="alert" className="mt-2 text-xs font-semibold text-[#a34d43]" data-testid="error-stripe-test-payment-link">{paymentLinkError}</p>}
-          {paymentLinkStatus && <p role="status" className="mt-2 text-xs font-semibold text-[#197360]" data-testid="status-stripe-test-payment-link">{paymentLinkStatus}</p>}
-          <div className="mt-3 flex justify-end">
-            <button
-              type="submit"
-              disabled={savingPaymentLink}
-              className="rounded-xl bg-[#101b30] px-4 py-2.5 text-xs font-bold text-white transition hover:bg-[#1b2c49] disabled:opacity-60"
-              data-testid="button-save-stripe-test-payment-link"
-            >
-              {savingPaymentLink ? t.saving : data?.invoice.payment_url && !paymentLinkDraft.trim() ? t.paymentLinkRemove : t.paymentLinkSave}
-            </button>
-          </div>
-        </form>
+        <div className="rounded-[18px] border border-[#e1e7e4] bg-[#fffefa] p-4 sm:p-5" data-testid="section-invoice-payment-automation">
+          <p className="text-xs leading-5 text-[#788493]">{t.paymentLinkAutoHelp}</p>
+          {data && data.invoice.payment_url ? (
+            <p className="mt-2 text-xs font-semibold text-[#197360]" role="status" data-testid="status-invoice-payment-link-ready">{t.paymentLinkReady}</p>
+          ) : data && (parseAmountToMilli(String(data.order.total)) ?? 0n) > 0n ? (
+            <p className="mt-2 text-xs leading-5 text-[#788493]" role="status" data-testid="status-invoice-payment-link-needs-retry">
+              {t.paymentLinkNeedsRetry}{" "}
+              {orderId && <Link href={`/order-details?id=${encodeURIComponent(orderId)}`} className="font-bold text-[#167b70] underline">{t.generatePaymentLink}</Link>}
+            </p>
+          ) : (
+            <p className="mt-2 text-xs font-semibold text-[#526174]" role="status" data-testid="status-invoice-no-payment-due">{t.noPaymentDue}</p>
+          )}
+        </div>
       </div>
     )}
     <div className="mx-auto max-w-[960px] px-4 py-6 sm:px-7 sm:py-10">
