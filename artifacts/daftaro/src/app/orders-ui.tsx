@@ -11,7 +11,7 @@ import {
   getBusinessProfile, getCustomers, getCustomerOrderHistory, getInvoiceForOrder,
   getInvoiceTokenForOrder, getOrderableProducts, getOrderDetails, getOrders,
   getPublicInvoice, requireCurrentUserId, saveCustomer, saveOrder, updateOrderStatus,
-  createInvoicePaymentLink,
+  createInvoicePaymentLink, deactivateInvoicePaymentLink,
   type BusinessProduct, type Customer, type OrderDetails, type OrderStatus,
   type OrderSummary, type PaymentStatus, type PublicInvoice,
 } from "../lib/orders-api";
@@ -21,6 +21,7 @@ import {
 import { AppHeader } from "../components/app-header";
 import { useAppLanguage } from "../hooks/use-app-language";
 import { supabase } from "../lib/supabase";
+import { canPayPublicInvoice } from "../lib/payment-links";
 
 type Lang = "ar" | "en";
 type Screen = "customers" | "orders" | "create-order" | "order-details" | "invoice";
@@ -62,6 +63,9 @@ const C = {
     generatingPaymentLink: "جارٍ إنشاء الرابط…",
     paymentLinkGenerationFailed: "تعذر إنشاء الرابط. الطلب محفوظ؛ حاولي مجددًا.",
     paymentLinkCleanupPending: "لا يوجد مبلغ مستحق، لكن تعذّر إيقاف رابط الدفع السابق.",
+    paymentLinkCancellationPending: "أُلغي الطلب، لكن تعذّر إيقاف رابط الدفع السابق. أعيدي المحاولة.",
+    paymentLinkCancellationFailed: "أُلغي الطلب، لكن تعذّر إيقاف رابط الدفع السابق. يمكنك إعادة المحاولة.",
+    paymentLinkCancelled: "تم إلغاء الطلب وإيقاف رابط الدفع.",
     noPaymentDue: "لا يوجد مبلغ مستحق، لذلك لا حاجة إلى رابط دفع.",
     payWithStripe: "الدفع عبر Stripe",
     paymentLinkPublicNote: "رابط اختبار Stripe؛ لا يتم تحصيل أموال حقيقية.",
@@ -108,6 +112,9 @@ const C = {
     generatingPaymentLink: "Creating link…",
     paymentLinkGenerationFailed: "We couldn't create the link. The order is saved; try again.",
     paymentLinkCleanupPending: "Nothing is due, but the previous payment link could not be disabled.",
+    paymentLinkCancellationPending: "The order is cancelled, but its previous payment link is still awaiting deactivation. Retry to disable it.",
+    paymentLinkCancellationFailed: "The order was cancelled, but its previous payment link could not be disabled. You can retry.",
+    paymentLinkCancelled: "The order is cancelled and its payment link is disabled.",
     noPaymentDue: "Nothing is due, so no payment link is needed.",
     payWithStripe: "Pay with Stripe",
     paymentLinkPublicNote: "Stripe test link; no real money will be charged.",
@@ -363,7 +370,20 @@ export default function OrdersUI({ screen }: { screen: Screen }) {
     setBusy(true);
     try {
       await updateOrderStatus(details.id, order_status, statusDraft.payment_status);
-      setDetails(await getOrderDetails(details.id));
+      let refreshed = await getOrderDetails(details.id);
+      setPaymentLinkError("");
+      if (
+        order_status === "Cancelled"
+        && (refreshed?.invoice?.payment_url || refreshed?.invoice?.payment_provider_reference)
+      ) {
+        try {
+          await deactivateInvoicePaymentLink(details.id);
+          refreshed = await getOrderDetails(details.id);
+        } catch {
+          setPaymentLinkError(t.paymentLinkCancellationFailed);
+        }
+      }
+      setDetails(refreshed);
       setNotice(t.statusSaved);
     } catch { setFormError(t.saveError); } finally { setBusy(false); }
   }
@@ -385,10 +405,19 @@ export default function OrdersUI({ screen }: { screen: Screen }) {
     setPaymentLinkError("");
     setGeneratingPaymentLink(true);
     try {
-      await createInvoicePaymentLink(orderId);
+      if (details?.order_status === "Cancelled") {
+        await deactivateInvoicePaymentLink(orderId);
+      } else {
+        await createInvoicePaymentLink(orderId);
+      }
       setDetails(await getOrderDetails(orderId));
+      setPaymentLinkError("");
     } catch {
-      setPaymentLinkError(t.paymentLinkGenerationFailed);
+      setPaymentLinkError(
+        details?.order_status === "Cancelled"
+          ? t.paymentLinkCancellationFailed
+          : t.paymentLinkGenerationFailed,
+      );
     } finally {
       setGeneratingPaymentLink(false);
     }
@@ -476,7 +505,22 @@ export default function OrdersUI({ screen }: { screen: Screen }) {
         {details.invoice && <section className={`${panel} p-5 sm:p-6`}>
           <p className="text-xs text-[#788493]">{t.invoiceNo}</p>
           <p className="mt-1 font-extrabold">{details.invoice.invoice_number}</p>
-          {(parseAmountToMilli(String(details.total)) ?? 0n) <= 0n && details.invoice.payment_provider_reference?.startsWith("plink_") ? (
+          {details.order_status === "Cancelled" && (details.invoice.payment_url || details.invoice.payment_provider_reference) ? (
+            <div className="mt-3">
+              <p className="text-xs leading-5 text-[#a34d43]" role="alert" data-testid="status-payment-link-cancellation-pending">{paymentLinkError || t.paymentLinkCancellationPending}</p>
+              <button
+                type="button"
+                disabled={generatingPaymentLink}
+                onClick={() => void retryPaymentLink(details.id)}
+                className="mt-3 w-full rounded-xl border border-[#dfe5e7] px-4 py-3 text-sm font-bold text-[#526174] disabled:opacity-60"
+                data-testid="button-retry-payment-link-cancellation"
+              >
+                {generatingPaymentLink ? t.generatingPaymentLink : t.tryAgain}
+              </button>
+            </div>
+          ) : details.order_status === "Cancelled" ? (
+            <p className="mt-3 rounded-xl bg-[#f7f8f3] px-3 py-2.5 text-xs text-[#526174]" role="status" data-testid="status-payment-link-cancelled">{t.paymentLinkCancelled}</p>
+          ) : (parseAmountToMilli(String(details.total)) ?? 0n) <= 0n && details.invoice.payment_provider_reference?.startsWith("plink_") ? (
             <div className="mt-3">
               <p className="text-xs leading-5 text-[#a34d43]" role="alert" data-testid="status-payment-link-cleanup-pending">{t.paymentLinkCleanupPending}</p>
               <button
@@ -597,7 +641,9 @@ function InvoiceScreen({ lang, setLang, loading, error, data, isPublic, invoiceT
       <div className="print:hidden mx-auto max-w-[960px] px-4 sm:px-7">
         <div className="rounded-[18px] border border-[#e1e7e4] bg-[#fffefa] p-4 sm:p-5" data-testid="section-invoice-payment-automation">
           <p className="text-xs leading-5 text-[#788493]">{t.paymentLinkAutoHelp}</p>
-          {data && data.invoice.payment_url ? (
+          {data && data.order.order_status === "Cancelled" ? (
+            <p className="mt-2 text-xs font-semibold text-[#526174]" role="status" data-testid="status-invoice-order-cancelled">{t.paymentLinkCancelled}</p>
+          ) : data && data.invoice.payment_url ? (
             <p className="mt-2 text-xs font-semibold text-[#197360]" role="status" data-testid="status-invoice-payment-link-ready">{t.paymentLinkReady}</p>
           ) : data && (parseAmountToMilli(String(data.order.total)) ?? 0n) > 0n ? (
             <p className="mt-2 text-xs leading-5 text-[#788493]" role="status" data-testid="status-invoice-payment-link-needs-retry">
@@ -617,7 +663,7 @@ function InvoiceScreen({ lang, setLang, loading, error, data, isPublic, invoiceT
         <div className="grid gap-5 border-b border-[#edf0ed] p-6 sm:grid-cols-2 sm:px-10 sm:py-7"><div><p className="mb-2 text-[10px] font-extrabold tracking-[.13em] text-[#927a46]">{t.billTo}</p><p className="font-extrabold">{data.customer.name}</p><p dir="ltr" className="mt-1 text-start text-sm text-[#788493]">{data.customer.phone}</p>{data.customer.email && <p dir="ltr" className="mt-1 text-start text-sm text-[#788493]">{data.customer.email}</p>}</div><div className="sm:text-end"><p className="mb-2 text-[10px] font-extrabold tracking-[.13em] text-[#927a46]">{t.orderNo}</p><p className="font-extrabold">{data.order.order_number}</p><p className="mt-1 text-sm text-[#788493]">{dateLabel(data.order.order_date,lang)}</p><div className="mt-3 flex flex-wrap gap-2 sm:justify-end"><span className="rounded-full bg-[#f3f4ef] px-3 py-1 text-[10px] font-bold">{labelFor(data.order.order_status,lang)}</span><span className="rounded-full bg-[#eaf5f0] px-3 py-1 text-[10px] font-bold text-[#197966]">{labelFor(data.order.payment_status,lang)}</span></div></div></div>
         <div className="px-5 py-5 sm:px-10 sm:py-7"><div className="hidden grid-cols-[1fr_80px_120px_120px] gap-3 border-b border-[#e8ece8] pb-3 text-[10px] font-extrabold text-[#788493] sm:grid"><span>{t.item}</span><span className="text-center">{t.quantity}</span><span className="text-end">{t.unitPrice}</span><span className="text-end">{t.total}</span></div><div className="divide-y divide-[#edf0ed]">{data.items.map((item,i)=><div key={`${item.product_name}-${i}`} className="grid grid-cols-[1fr_auto] gap-2 py-4 sm:grid-cols-[1fr_80px_120px_120px] sm:items-center sm:gap-3" data-testid={`invoice-item-${i}`}><div><p className="text-sm font-bold">{item.product_name}</p><p className="mt-1 text-[11px] text-[#788493] sm:hidden">{item.quantity} × {money(item.unit_price,data.order.currency_code,lang)}</p></div><span className="text-end text-sm font-bold sm:text-center">{item.quantity}</span><span className="hidden text-end text-sm text-[#788493] sm:inline">{money(item.unit_price,data.order.currency_code,lang)}</span><span className="text-end text-sm font-extrabold">{money(item.line_total,data.order.currency_code,lang)}</span></div>)}</div>
           <div className="ms-auto mt-5 max-w-sm space-y-2.5 border-t border-[#edf0ed] pt-5 text-sm"><div className="flex justify-between text-[#788493]"><span>{t.subtotal}</span>{money(data.order.subtotal,data.order.currency_code,lang)}</div><div className="flex justify-between text-[#788493]"><span>{t.discount}</span><span>−{money(data.order.discount,data.order.currency_code,lang)}</span></div><div className="flex justify-between text-[#788493]"><span>{t.shipping}</span>{money(data.order.shipping_fee,data.order.currency_code,lang)}</div><div className="flex justify-between border-t border-[#e8ece8] pt-3 text-base font-extrabold text-[#17283c]"><span>{t.totalDue}</span>{money(data.order.total,data.order.currency_code,lang)}</div></div>
-          {data.invoice.payment_url && <div className="mt-6 rounded-xl border border-[#e2e9e3] bg-[#f7f8f3] p-4" data-testid="section-invoice-payment-link"><p className="text-xs font-bold text-[#526174]">{t.paymentLink}</p><a href={data.invoice.payment_url} target="_blank" rel="noopener noreferrer" aria-label={t.payWithStripe} className="mt-2 inline-flex rounded-xl bg-[#167b70] px-4 py-2.5 text-sm font-bold text-white no-underline" data-testid="link-invoice-payment">{t.payWithStripe}</a><p className="mt-2 text-[11px] text-[#788493]">{t.paymentLinkPublicNote}</p></div>}
+           {canPayPublicInvoice(data.order.order_status, data.invoice.payment_url) && data.invoice.payment_url && <div className="mt-6 rounded-xl border border-[#e2e9e3] bg-[#f7f8f3] p-4" data-testid="section-invoice-payment-link"><p className="text-xs font-bold text-[#526174]">{t.paymentLink}</p><a href={data.invoice.payment_url} target="_blank" rel="noopener noreferrer" aria-label={t.payWithStripe} className="mt-2 inline-flex rounded-xl bg-[#167b70] px-4 py-2.5 text-sm font-bold text-white no-underline" data-testid="link-invoice-payment">{t.payWithStripe}</a><p className="mt-2 text-[11px] text-[#788493]">{t.paymentLinkPublicNote}</p></div>}
         </div><footer className="border-t border-[#edf0ed] bg-[#f8f9f6] px-6 py-4 text-center text-[10px] text-[#85909d] sm:px-10">{rtl?"شكرًا لثقتكم":"Thank you for your business."}</footer>
       </article>
     </div>

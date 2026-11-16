@@ -21,3 +21,10 @@ export function normalizeStripeTestPaymentLink(value: string): string | null {
     return null;
   }
 }
+
+export function canPayPublicInvoice(
+  orderStatus: string,
+  paymentUrl: string | null,
+): boolean {
+  return orderStatus !== "Cancelled" && Boolean(paymentUrl);
+}

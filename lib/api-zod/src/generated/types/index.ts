@@ -8,6 +8,8 @@
 
 export * from './apiError';
 export * from './healthStatus';
+export * from './invoicePaymentLinkDeactivationResult';
+export * from './invoicePaymentLinkDeactivationResultStatus';
 export * from './invoicePaymentLinkInput';
 export * from './invoicePaymentLinkResult';
 export * from './invoicePaymentLinkResultStatus';

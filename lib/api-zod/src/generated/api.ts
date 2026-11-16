@@ -29,3 +29,16 @@ export const CreateInvoicePaymentLinkResponse = zod.object({
   "paymentUrl": zod.string().url().nullable(),
   "status": zod.enum(['created', 'reused', 'no_payment_due'])
 })
+
+
+/**
+ * Disables the saved Stripe test Payment Link for an order that is already cancelled.
+ * @summary Disable a cancelled order's test payment link
+ */
+export const DeactivateInvoicePaymentLinkBody = zod.object({
+  "orderId": zod.string().uuid()
+})
+
+export const DeactivateInvoicePaymentLinkResponse = zod.object({
+  "status": zod.enum(['deactivated', 'already_inactive'])
+})

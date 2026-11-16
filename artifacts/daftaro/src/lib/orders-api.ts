@@ -1,5 +1,8 @@
 import { supabase } from "./supabase";
-import { createInvoicePaymentLink as requestInvoicePaymentLink } from "@workspace/api-client-react";
+import {
+  createInvoicePaymentLink as requestInvoicePaymentLink,
+  deactivateInvoicePaymentLink as requestDeactivateInvoicePaymentLink,
+} from "@workspace/api-client-react";
 
 export type OrderStatus = "New" | "Processing" | "Completed" | "Cancelled";
 export type PaymentStatus = "Unpaid" | "Pending" | "Paid" | "Failed" | "Refunded";
@@ -325,6 +328,19 @@ export async function createInvoicePaymentLink(orderId: string) {
   if (!accessToken) throw new Error("Authentication required.");
 
   return requestInvoicePaymentLink(
+    { orderId },
+    { headers: { Authorization: `Bearer ${accessToken}` } },
+  );
+}
+
+export async function deactivateInvoicePaymentLink(orderId: string) {
+  if (!UUID_PATTERN.test(orderId)) throw new Error("Order not found.");
+  const { data, error } = await supabase.auth.getSession();
+  if (error) throw error;
+  const accessToken = data.session?.access_token;
+  if (!accessToken) throw new Error("Authentication required.");
+
+  return requestDeactivateInvoicePaymentLink(
     { orderId },
     { headers: { Authorization: `Bearer ${accessToken}` } },
   );

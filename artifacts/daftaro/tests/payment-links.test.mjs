@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { normalizeStripeTestPaymentLink } from "../src/lib/payment-links.ts";
+import {
+  canPayPublicInvoice,
+  normalizeStripeTestPaymentLink,
+} from "../src/lib/payment-links.ts";
 
 test("accepts and normalizes Stripe test payment links", () => {
   assert.equal(
@@ -19,4 +22,16 @@ test("rejects links containing credentials, query strings, or fragments", () => 
   assert.equal(normalizeStripeTestPaymentLink("https://user:pass@buy.stripe.com/test_123"), null);
   assert.equal(normalizeStripeTestPaymentLink("https://buy.stripe.com/test_123?email=a@example.com"), null);
   assert.equal(normalizeStripeTestPaymentLink("https://buy.stripe.com/test_123#invoice"), null);
+});
+
+test("hides the public payment action immediately when an order is cancelled", () => {
+  assert.equal(
+    canPayPublicInvoice("Cancelled", "https://buy.stripe.com/test_oldlink"),
+    false,
+  );
+  assert.equal(
+    canPayPublicInvoice("New", "https://buy.stripe.com/test_active"),
+    true,
+  );
+  assert.equal(canPayPublicInvoice("New", null), false);
 });

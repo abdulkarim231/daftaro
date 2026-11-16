@@ -83,6 +83,63 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiError"
+  /invoice-payment-links/deactivate:
+    post:
+      operationId: deactivateInvoicePaymentLink
+      tags: [invoice-payments]
+      summary: Disable a cancelled order's test payment link
+      description: Disables the saved Stripe test Payment Link for an order that is already cancelled.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InvoicePaymentLinkInput"
+      responses:
+        "200":
+          description: The payment link is inactive or was already inactive
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvoicePaymentLinkDeactivationResult"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          description: Authentication is missing or invalid
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: The order or its invoice was not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "409":
+          description: The order is not cancelled or its saved link cannot be safely identified
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "502":
+          description: Stripe could not disable the payment link; retry is available
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "503":
+          description: Stripe test configuration is unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
 components:
   schemas:
     HealthStatus:
@@ -113,6 +170,15 @@ components:
           enum: [created, reused, no_payment_due]
       required:
         - paymentUrl
+        - status
+    InvoicePaymentLinkDeactivationResult:
+      type: object
+      additionalProperties: false
+      properties:
+        status:
+          type: string
+          enum: [deactivated, already_inactive]
+      required:
         - status
     ApiError:
       type: object

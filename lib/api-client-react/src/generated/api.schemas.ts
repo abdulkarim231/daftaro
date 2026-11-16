@@ -28,6 +28,18 @@ export interface InvoicePaymentLinkResult {
   status: InvoicePaymentLinkResultStatus;
 }
 
+export type InvoicePaymentLinkDeactivationResultStatus = typeof InvoicePaymentLinkDeactivationResultStatus[keyof typeof InvoicePaymentLinkDeactivationResultStatus];
+
+
+export const InvoicePaymentLinkDeactivationResultStatus = {
+  deactivated: 'deactivated',
+  already_inactive: 'already_inactive',
+} as const;
+
+export interface InvoicePaymentLinkDeactivationResult {
+  status: InvoicePaymentLinkDeactivationResultStatus;
+}
+
 export interface ApiError {
   error: string;
 }

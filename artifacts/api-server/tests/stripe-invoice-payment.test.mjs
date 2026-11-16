@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createInvoicePaymentLink } from "../src/lib/stripe-invoice-payment.ts";
+import {
+  createInvoicePaymentLink,
+  deactivateInvoicePaymentLink,
+} from "../src/lib/stripe-invoice-payment.ts";
 
 test("creates a one-time Stripe link from the saved invoice amount", async () => {
   const calls = {};
@@ -82,4 +85,43 @@ test("does not create a payment link for a zero-total invoice", async () => {
     }),
   );
   assert.equal(stripeCalled, false);
+});
+
+test("cancellation disables a Stripe test link without creating a charge", async () => {
+  const calls = [];
+  const stripe = {
+    paymentLinks: {
+      update: async (id, params) => {
+        calls.push({ id, params });
+      },
+      create: async () => {
+        throw new Error("Cancellation must not create another payment link.");
+      },
+    },
+    paymentIntents: {
+      create: async () => {
+        throw new Error("Cancellation must never create a payment intent.");
+      },
+    },
+  };
+
+  await deactivateInvoicePaymentLink(stripe, "plink_test123");
+
+  assert.deepEqual(calls, [{ id: "plink_test123", params: { active: false } }]);
+});
+
+test("treats an already-removed Stripe payment link as safely deactivated", async () => {
+  const stripe = {
+    paymentLinks: {
+      update: async () => {
+        const error = new Error("No such payment link");
+        error.code = "resource_missing";
+        throw error;
+      },
+    },
+  };
+
+  await assert.doesNotReject(
+    deactivateInvoicePaymentLink(stripe, "plink_missing123"),
+  );
 });
