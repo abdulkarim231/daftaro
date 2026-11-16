@@ -74,3 +74,31 @@ a { text-decoration: none; }
   }
   [data-testid="recent-transactions-card"] .overflow-x-auto { overflow: visible !important; }
 }
+
+.print-only { display: none; }
+.report-section h2 { border-bottom: 1px solid #cbd5e1; padding-bottom: .35rem; font-size: 14pt; font-weight: 800; }
+.report-section h3 { font-size: 10pt; font-weight: 800; }
+.report-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .55rem; margin-top: .75rem; }
+.report-grid > p { display: flex; flex-direction: column; gap: .25rem; border: 1px solid #dbe3e8; border-radius: .4rem; padding: .6rem; font-size: 9pt; }
+.report-grid > p > span { color: #526276; }
+.report-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; margin-top: .75rem; }
+.report-list { margin-top: .4rem; }
+.report-list > li { display: flex; justify-content: space-between; gap: .6rem; border-bottom: 1px solid #e2e8f0; padding: .35rem 0; font-size: 9pt; break-inside: avoid; }
+.report-list.report-recommendation-list > li { display: block; }
+.report-evidence { display: grid; gap: .4rem; margin-top: .6rem; }
+.report-evidence > li { display: grid; grid-template-columns: minmax(8rem, .7fr) minmax(0, 2fr); gap: .5rem; border: 1px solid #dbe3e8; border-radius: .35rem; padding: .45rem; font-size: 8pt; break-inside: avoid; }
+.report-evidence > li > span { display: flex; flex-wrap: wrap; gap: .25rem .7rem; }
+.report-notes { list-style: disc; margin-top: .5rem; padding-inline-start: 1.25rem; font-size: 9pt; line-height: 1.6; }
+
+@media print {
+  body:has([data-testid="ai-insights-page"]) { margin: 0; background: #fff !important; }
+  [data-testid="ai-insights-page"] { min-height: 0 !important; background: #fff !important; color: #172639 !important; }
+  [data-testid="ai-insights-page"] .screen-only { display: none !important; }
+  [data-testid="ai-insights-page"] .print-only { display: block !important; max-width: none !important; padding: 0 !important; }
+  [data-testid="ai-print-report"] { color: #172639 !important; font-size: 9pt; }
+  [data-testid="ai-print-report"] h1 { font-size: 24pt; }
+  [data-testid="ai-print-report"] h2 { color: #172639 !important; }
+  [data-testid="ai-print-report"] section { break-inside: auto; }
+  [data-testid="ai-print-report"] .report-section > h2,
+  [data-testid="ai-print-report"] .report-section > h3 { break-after: avoid; }
+}

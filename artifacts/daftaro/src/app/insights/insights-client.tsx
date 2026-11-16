@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Bot, CircleAlert, LoaderCircle, MessageCircle, RefreshCw, Send, Sparkles, Tag } from "lucide-react";
+import { Bot, CircleAlert, LoaderCircle, MessageCircle, Printer, RefreshCw, Send, Sparkles, Tag } from "lucide-react";
 import { AppHeader } from "../../components/app-header";
+import { PrintableAiReport } from "../../components/printable-ai-report";
 import { useAppLanguage } from "../../hooks/use-app-language";
 import { supabase } from "../../lib/supabase";
 import {
@@ -47,6 +48,7 @@ const COPY = {
     evidence: "الدليل", paidUnits: "وحدات مدفوعة", revenue: "الإيراد المدفوع", profit: "الربح التقديري",
     noData: "لا توجد بيانات لهذا القسم في الفترة المختارة.", notEnough: "بيانات غير كافية لتقييم الأداء.",
     close: "إغلاق",
+    printReport: "طباعة أو حفظ PDF",
   },
   en: {
     title: "Daftaro AI insights", subtitle: "Analysis and explanations based on your actual business data.",
@@ -73,6 +75,7 @@ const COPY = {
     evidence: "Evidence", paidUnits: "Paid units", revenue: "Paid revenue", profit: "Estimated profit",
     noData: "No data for this section in the selected period.", notEnough: "Not enough data to assess performance.",
     close: "Close",
+    printReport: "Print or save PDF",
   },
 } as const;
 
@@ -277,13 +280,15 @@ export default function InsightsClient() {
 
   return (
     <main dir={rtl ? "rtl" : "ltr"} className="min-h-[100dvh] bg-[#f4f6f4] text-[#172639]" data-testid="ai-insights-page">
-      <AppHeader
-        language={language}
-        onLanguageChange={() => setLanguage(rtl ? "en" : "ar")}
-        onSignOut={() => void supabase.auth.signOut().then(({ error }) => { if (!error) router.replace("/auth"); })}
-        signingOut={false}
-      />
-      <div className="mx-auto max-w-[1240px] space-y-5 px-4 pb-12 pt-7 sm:px-7 sm:pt-10">
+      <div className="screen-only">
+        <AppHeader
+          language={language}
+          onLanguageChange={() => setLanguage(rtl ? "en" : "ar")}
+          onSignOut={() => void supabase.auth.signOut().then(({ error }) => { if (!error) router.replace("/auth"); })}
+          signingOut={false}
+        />
+      </div>
+      <div className="screen-only mx-auto max-w-[1240px] space-y-5 px-4 pb-12 pt-7 sm:px-7 sm:pt-10">
         <section className={`${panel} flex flex-wrap items-end justify-between gap-5`}>
           <div>
             <div className="mb-3 flex items-center gap-2 text-[#167b70]"><Sparkles size={16} /><span className="text-[10px] font-extrabold tracking-[.15em]">{rtl ? "تحليل مدعوم بالذكاء الاصطناعي" : "AI-POWERED BUSINESS REVIEW"}</span></div>
@@ -294,6 +299,7 @@ export default function InsightsClient() {
             <label className="grid gap-1 text-[11px] font-bold"><span className={muted}>{text.period}</span><select value={period} onChange={(event) => setPeriod(event.target.value as AiPeriod)} className="rounded-xl border border-[#dfe5e7] bg-white px-3 py-2.5 text-xs" data-testid="select-ai-period">{(["7d", "30d", "90d"] as AiPeriod[]).map((key) => <option key={key} value={key}>{periodLabels[key]}</option>)}</select></label>
             <div className="grid gap-1 text-[11px] font-bold"><span className={muted}>{text.currency}</span><span className="rounded-xl border border-[#dfe5e7] bg-[#f1f3ef] px-3 py-2.5 text-xs" data-testid="text-ai-currency">{currency}</span></div>
             <button type="button" onClick={() => void loadAnalysis()} disabled={loading || !userId} className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-[#101b30] px-4 text-xs font-bold text-white disabled:opacity-60" data-testid="button-refresh-ai-analysis">{loading ? <LoaderCircle size={14} className="animate-spin" /> : <RefreshCw size={14} />}{text.analyze}</button>
+             <button type="button" onClick={() => window.print()} disabled={loading || !analysis || analysis.period !== period} className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-[#dfe5e7] bg-white px-4 text-xs font-bold text-[#172639] disabled:opacity-50" data-testid="button-print-ai-report"><Printer size={14} />{text.printReport}</button>
           </div>
         </section>
 
@@ -402,6 +408,7 @@ export default function InsightsClient() {
           </form>
         </section>
       </div>
+      {analysis && analysis.period === period && <PrintableAiReport analysis={analysis} language={language} />}
     </main>
   );
 }
