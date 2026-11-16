@@ -94,3 +94,5 @@ export function buildPrintableAiReport(analysis: AiAnalysis) {
     },
   };
 }
+
+export type PrintableAiReportData = ReturnType<typeof buildPrintableAiReport>;

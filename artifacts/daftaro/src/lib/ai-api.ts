@@ -1,4 +1,5 @@
 import { supabase } from "./supabase";
+import type { PrintableAiReportData } from "./printable-ai-report";
 
 export type AiPeriod = "7d" | "30d" | "90d";
 export type AiLanguage = "ar" | "en";
@@ -63,8 +64,21 @@ export type AiPriceResult = {
   aiError?: string | null;
 };
 
+export type AiReportShare = {
+  shareId: string;
+  period: AiPeriod;
+  currencyCode: string;
+  createdAt: string;
+  expiresAt: string;
+  revokedAt: string | null;
+};
+
+export type CreatedAiReportShare = AiReportShare & { token: string };
+
 export function localizeAiError(message: string, language: AiLanguage) {
   if (language === "en") return message;
+  if (/report sharing.*migration|sharing storage.*not ready/i.test(message)) return "تحتاج مشاركة التقارير إلى تطبيق تحديث قاعدة Supabase أولًا.";
+  if (/share.*(expired|revoked|invalid|not found)/i.test(message)) return "انتهت صلاحية الرابط أو تم إلغاؤه. اطلب رابطًا جديدًا من صاحب التقرير.";
   if (/sign in|session is invalid/i.test(message)) return "سجّل الدخول مجددًا لاستخدام مساعد دفترُك.";
   if (/too many|rate limit/i.test(message)) return "تجاوزت عدد الطلبات المسموح. حاول مجددًا بعد دقيقة.";
   if (/busy|rate-limited|temporarily/i.test(message)) return "النماذج المجانية مشغولة الآن. حاول مجددًا بعد قليل.";
@@ -109,4 +123,43 @@ export function getAiPriceAdvice(productId: string, proposedPrice: string, langu
     method: "POST",
     body: JSON.stringify({ productId, proposedPrice, language }),
   });
+}
+
+export function createAiReportShare(
+  analysis: AiAnalysis,
+  expiresInDays: 1 | 7 | 30,
+  language: AiLanguage,
+) {
+  return authenticatedFetch<CreatedAiReportShare>("/api/ai/report-shares", {
+    method: "POST",
+    body: JSON.stringify({
+      period: analysis.period,
+      currency: analysis.currencyCode,
+      expiresInDays,
+      language,
+    }),
+  });
+}
+
+export function listAiReportShares() {
+  return authenticatedFetch<{ shares: AiReportShare[] }>("/api/ai/report-shares");
+}
+
+export function revokeAiReportShare(shareId: string) {
+  return authenticatedFetch<{ revoked: boolean }>(`/api/ai/report-shares/${encodeURIComponent(shareId)}/revoke`, {
+    method: "POST",
+  });
+}
+
+export async function getSharedAiReport(shareId: string, token: string) {
+  const response = await fetch(`/api/ai/report-shares/${encodeURIComponent(shareId)}/view`, {
+    method: "POST",
+    cache: "no-store",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token }),
+  });
+  const body = await response.json().catch(() => null) as { report?: PrintableAiReportData; error?: string } | null;
+  if (!response.ok) throw new Error(body?.error || "This report link is expired or unavailable.");
+  if (!body?.report || typeof body.report !== "object") throw new Error("The shared report could not be loaded.");
+  return body.report;
 }

@@ -91,11 +91,9 @@ a { text-decoration: none; }
 .report-notes { list-style: disc; margin-top: .5rem; padding-inline-start: 1.25rem; font-size: 9pt; line-height: 1.6; }
 
 @media print {
-  body:has([data-testid="ai-insights-page"]) { margin: 0; background: #fff !important; }
-  [data-testid="ai-insights-page"] { min-height: 0 !important; background: #fff !important; color: #172639 !important; }
-  [data-testid="ai-insights-page"] .screen-only { display: none !important; }
-  [data-testid="ai-insights-page"] .print-only { display: block !important; max-width: none !important; padding: 0 !important; }
-  [data-testid="ai-print-report"] { color: #172639 !important; font-size: 9pt; }
+  body:has([data-testid="ai-print-report"]) { margin: 0; background: #fff !important; }
+  body:has([data-testid="ai-print-report"]) .screen-only { display: none !important; }
+  [data-testid="ai-print-report"] { display: block !important; max-width: none !important; min-height: 0 !important; padding: 0 !important; color: #172639 !important; font-size: 9pt; }
   [data-testid="ai-print-report"] h1 { font-size: 24pt; }
   [data-testid="ai-print-report"] h2 { color: #172639 !important; }
   [data-testid="ai-print-report"] section { break-inside: auto; }

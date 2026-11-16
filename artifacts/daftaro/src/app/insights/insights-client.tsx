@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } fro
 import { useRouter } from "next/navigation";
 import { Bot, CircleAlert, LoaderCircle, MessageCircle, Printer, RefreshCw, Send, Sparkles, Tag } from "lucide-react";
 import { AppHeader } from "../../components/app-header";
+import { AiReportSharingPanel } from "../../components/ai-report-sharing-panel";
 import { PrintableAiReport } from "../../components/printable-ai-report";
 import { useAppLanguage } from "../../hooks/use-app-language";
 import { supabase } from "../../lib/supabase";
@@ -17,6 +18,7 @@ import {
   type AiPeriod,
   type AiPriceResult,
 } from "../../lib/ai-api";
+import { buildPrintableAiReport } from "../../lib/printable-ai-report";
 
 type ProductOption = {
   id: string; name: string; selling_price: string | number; currency_code: string;
@@ -375,6 +377,8 @@ export default function InsightsClient() {
           </>
         )}
 
+        {analysis && analysis.period === period && <AiReportSharingPanel analysis={analysis} language={language} />}
+
         <section id="pricing" className={panel} data-testid="ai-pricing-advisor">
           <div className="mb-4 flex items-center gap-2 text-[#167b70]"><Tag size={17} /><h2 className="text-lg font-extrabold text-[#172639]">{text.advisor}</h2></div>
           <p className={`mb-4 text-xs leading-6 ${muted}`}>{text.simulationOnly}</p>
@@ -408,7 +412,7 @@ export default function InsightsClient() {
           </form>
         </section>
       </div>
-      {analysis && analysis.period === period && <PrintableAiReport analysis={analysis} language={language} />}
+      {analysis && analysis.period === period && <PrintableAiReport report={buildPrintableAiReport(analysis)} language={language} />}
     </main>
   );
 }

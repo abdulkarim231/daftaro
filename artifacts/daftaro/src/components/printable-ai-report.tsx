@@ -1,5 +1,5 @@
 import type { AiLanguage, AiPeriod } from "../lib/ai-api";
-import { buildPrintableAiReport } from "../lib/printable-ai-report";
+import type { PrintableAiReportData } from "../lib/printable-ai-report";
 
 const COPY = {
   ar: {
@@ -145,13 +145,12 @@ function formatEvidenceValue(key: string, value: string | number | null, currenc
 }
 
 export function PrintableAiReport({
-  analysis,
+  report,
   language,
 }: {
-  analysis: Parameters<typeof buildPrintableAiReport>[0];
+  report: PrintableAiReportData;
   language: AiLanguage;
 }) {
-  const report = buildPrintableAiReport(analysis);
   const copy = COPY[language];
   const labels = FIELD_LABELS[language] as Record<string, string>;
   const periodLabel = language === "ar"
