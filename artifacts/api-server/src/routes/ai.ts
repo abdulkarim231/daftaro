@@ -19,6 +19,7 @@ import {
   hashReportShareToken,
   isReportShareExpiryDays,
   isReportShareToken,
+  sanitizePrintableAiReportSnapshot,
   sanitizeShareNarrative,
 } from "../lib/ai-report-share";
 import { completeWithOpenRouter, OpenRouterError } from "../lib/openrouter";
@@ -31,6 +32,7 @@ const MAX_REQUESTS_PER_WINDOW = 5;
 const requestWindows = new Map<string, number[]>();
 const shareCreationWindows = new Map<string, number[]>();
 const publicShareViewWindows = new Map<string, number[]>();
+const savedReportCreationWindows = new Map<string, number[]>();
 
 function bearerToken(req: Request) {
   return /^Bearer\s+(\S+)$/i.exec(req.get("authorization") ?? "")?.[1] ?? null;
@@ -103,6 +105,10 @@ function reportSharingNotReady(code?: string) {
   return code === "PGRST202" || code === "42883" || code === "42P01";
 }
 
+function savedReportStorageNotReady(code?: string) {
+  return code === "PGRST202" || code === "42883" || code === "42P01";
+}
+
 function mapShareRow(row: Record<string, unknown>) {
   return {
     shareId: String(row.share_id ?? ""),
@@ -112,6 +118,22 @@ function mapShareRow(row: Record<string, unknown>) {
     expiresAt: row.expires_at,
     revokedAt: row.revoked_at,
   };
+}
+
+function mapSavedReportRow(row: Record<string, unknown>) {
+  return {
+    savedReportId: String(row.saved_report_id ?? ""),
+    period: row.period,
+    currencyCode: row.currency_code,
+    createdAt: row.created_at,
+  };
+}
+
+function parsePageValue(value: unknown, fallback: number) {
+  if (value === undefined) return fallback;
+  if (typeof value !== "string" || !/^\d{1,7}$/.test(value)) return null;
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) ? parsed : null;
 }
 
 async function loadRows<T>(
@@ -585,6 +607,184 @@ router.post("/ai/report-shares/:shareId/view", async (req: Request, res: Respons
   } catch (error) {
     req.log.error({ reason: error instanceof Error ? error.message : "unknown" }, "Shared AI report lookup failed");
     res.status(404).json({ error: "This report link is expired or unavailable." });
+  }
+});
+
+router.post("/ai/saved-reports", async (req: Request, res: Response): Promise<void> => {
+  res.setHeader("Cache-Control", "no-store, private");
+  const auth = await authenticatedClient(req, res);
+  if (!auth) return;
+  if (!allowWindow(savedReportCreationWindows, auth.userId, 20, 60 * 60_000)) {
+    res.status(429).json({ error: "Too many reports have been saved. Try again later." });
+    return;
+  }
+
+  const period = asPeriod(req.body?.period);
+  const currencyCode = typeof req.body?.currency === "string" ? req.body.currency : "";
+  const report = sanitizePrintableAiReportSnapshot(req.body?.report);
+  if (
+    !period
+    || !/^(KWD|SAR|AED|BHD|QAR|OMR|USD)$/.test(currencyCode)
+    || !report
+    || report.period !== period
+    || report.currencyCode !== currencyCode
+  ) {
+    res.status(400).json({ error: "Choose a supported period and currency, and provide the current report snapshot." });
+    return;
+  }
+
+  try {
+    const { data, error } = await auth.client.rpc("create_ai_saved_report", {
+      p_period: period,
+      p_currency_code: currencyCode,
+      p_snapshot: report,
+    });
+    if (error) {
+      if (savedReportStorageNotReady(error.code)) {
+        res.status(503).json({ error: "Saved reports are not set up. Apply the Daftaro saved-reports migration." });
+        return;
+      }
+      req.log.error({ code: error.code }, "Could not save an AI report");
+      res.status(502).json({ error: "The report could not be saved. Try again." });
+      return;
+    }
+    const created = Array.isArray(data) ? data[0] : data;
+    if (!created || typeof created !== "object") {
+      res.status(502).json({ error: "The report could not be saved. Try again." });
+      return;
+    }
+    const row = created as Record<string, unknown>;
+    res.status(201).json({
+      savedReport: {
+        savedReportId: String(row.saved_report_id ?? ""),
+        period,
+        currencyCode,
+        createdAt: row.created_at,
+        report,
+      },
+    });
+  } catch (error) {
+    req.log.error({ reason: error instanceof Error ? error.message : "unknown" }, "Could not save an AI report snapshot");
+    res.status(502).json({ error: "The report could not be saved. Try again." });
+  }
+});
+
+router.get("/ai/saved-reports", async (req: Request, res: Response): Promise<void> => {
+  res.setHeader("Cache-Control", "no-store, private");
+  const auth = await authenticatedClient(req, res);
+  if (!auth) return;
+  const limit = parsePageValue(req.query.limit, 50);
+  const offset = parsePageValue(req.query.offset, 0);
+  if (limit === null || limit < 1 || limit > 50 || offset === null || offset > 10_000_000) {
+    res.status(400).json({ error: "Choose a valid saved-report page." });
+    return;
+  }
+  try {
+    const { data, error } = await auth.client.rpc("list_ai_saved_reports", {
+      p_limit: limit,
+      p_offset: offset,
+    });
+    if (error) {
+      if (savedReportStorageNotReady(error.code)) {
+        res.status(503).json({ error: "Saved reports are not set up. Apply the Daftaro saved-reports migration." });
+        return;
+      }
+      req.log.error({ code: error.code }, "Could not list saved AI reports");
+      res.status(502).json({ error: "Saved reports could not be loaded." });
+      return;
+    }
+    const rows = Array.isArray(data) ? data : [];
+    res.json({
+      reports: rows.map((row) => mapSavedReportRow(row as Record<string, unknown>)),
+      hasMore: rows.length === limit,
+    });
+  } catch (error) {
+    req.log.error({ reason: error instanceof Error ? error.message : "unknown" }, "Could not list saved AI reports");
+    res.status(502).json({ error: "Saved reports could not be loaded." });
+  }
+});
+
+router.get("/ai/saved-reports/:savedReportId", async (req: Request, res: Response): Promise<void> => {
+  res.setHeader("Cache-Control", "no-store, private");
+  const auth = await authenticatedClient(req, res);
+  if (!auth) return;
+  const rawId = Array.isArray(req.params.savedReportId) ? req.params.savedReportId[0] : req.params.savedReportId;
+  if (!UUID_PATTERN.test(rawId)) {
+    res.status(404).json({ error: "Saved report not found." });
+    return;
+  }
+  try {
+    const { data, error } = await auth.client.rpc("get_ai_saved_report", { p_saved_report_id: rawId });
+    if (error) {
+      if (savedReportStorageNotReady(error.code)) {
+        res.status(503).json({ error: "Saved reports are not set up. Apply the Daftaro saved-reports migration." });
+        return;
+      }
+      req.log.error({ code: error.code }, "Could not load a saved AI report");
+      res.status(502).json({ error: "Saved report could not be loaded." });
+      return;
+    }
+    const row = Array.isArray(data) ? data[0] : data;
+    if (!row || typeof row !== "object") {
+      res.status(404).json({ error: "Saved report not found." });
+      return;
+    }
+    const savedReport = row as Record<string, unknown>;
+    const report = savedReport.snapshot;
+    if (
+      !report
+      || typeof report !== "object"
+      || Array.isArray(report)
+      || (report as Record<string, unknown>).period !== savedReport.period
+      || (report as Record<string, unknown>).currencyCode !== savedReport.currency_code
+    ) {
+      req.log.error({ code: "invalid_saved_report_snapshot" }, "Stored AI report failed validation");
+      res.status(404).json({ error: "Saved report not found." });
+      return;
+    }
+    res.json({
+      savedReport: {
+        savedReportId: String(savedReport.saved_report_id ?? ""),
+        period: savedReport.period,
+        currencyCode: savedReport.currency_code,
+        createdAt: savedReport.created_at,
+        report,
+      },
+    });
+  } catch (error) {
+    req.log.error({ reason: error instanceof Error ? error.message : "unknown" }, "Could not load a saved AI report");
+    res.status(502).json({ error: "Saved report could not be loaded." });
+  }
+});
+
+router.delete("/ai/saved-reports/:savedReportId", async (req: Request, res: Response): Promise<void> => {
+  res.setHeader("Cache-Control", "no-store, private");
+  const auth = await authenticatedClient(req, res);
+  if (!auth) return;
+  const rawId = Array.isArray(req.params.savedReportId) ? req.params.savedReportId[0] : req.params.savedReportId;
+  if (!UUID_PATTERN.test(rawId)) {
+    res.status(404).json({ error: "Saved report not found." });
+    return;
+  }
+  try {
+    const { data, error } = await auth.client.rpc("delete_ai_saved_report", { p_saved_report_id: rawId });
+    if (error) {
+      if (savedReportStorageNotReady(error.code)) {
+        res.status(503).json({ error: "Saved reports are not set up. Apply the Daftaro saved-reports migration." });
+        return;
+      }
+      req.log.error({ code: error.code }, "Could not delete a saved AI report");
+      res.status(502).json({ error: "Saved report could not be deleted." });
+      return;
+    }
+    if (data !== true) {
+      res.status(404).json({ error: "Saved report not found." });
+      return;
+    }
+    res.json({ deleted: true });
+  } catch (error) {
+    req.log.error({ reason: error instanceof Error ? error.message : "unknown" }, "Could not delete a saved AI report");
+    res.status(502).json({ error: "Saved report could not be deleted." });
   }
 });
 

@@ -1,4 +1,5 @@
 import { supabase } from "./supabase";
+import { buildPrintableAiReport } from "./printable-ai-report";
 import type { PrintableAiReportData } from "./printable-ai-report";
 
 export type AiPeriod = "7d" | "30d" | "90d";
@@ -75,8 +76,20 @@ export type AiReportShare = {
 
 export type CreatedAiReportShare = AiReportShare & { token: string };
 
+export type AiSavedReportSummary = {
+  savedReportId: string;
+  period: AiPeriod;
+  currencyCode: string;
+  createdAt: string;
+};
+
+export type AiSavedReport = AiSavedReportSummary & {
+  report: PrintableAiReportData;
+};
+
 export function localizeAiError(message: string, language: AiLanguage) {
   if (language === "en") return message;
+  if (/saved reports.*migration|saved reports.*not set up/i.test(message)) return "تحتاج التقارير المحفوظة إلى تطبيق تحديث قاعدة Supabase أولًا.";
   if (/report sharing.*migration|sharing storage.*not ready/i.test(message)) return "تحتاج مشاركة التقارير إلى تطبيق تحديث قاعدة Supabase أولًا.";
   if (/share.*(expired|revoked|invalid|not found)/i.test(message)) return "انتهت صلاحية الرابط أو تم إلغاؤه. اطلب رابطًا جديدًا من صاحب التقرير.";
   if (/sign in|session is invalid/i.test(message)) return "سجّل الدخول مجددًا لاستخدام مساعد دفترُك.";
@@ -162,4 +175,30 @@ export async function getSharedAiReport(shareId: string, token: string) {
   if (!response.ok) throw new Error(body?.error || "This report link is expired or unavailable.");
   if (!body?.report || typeof body.report !== "object") throw new Error("The shared report could not be loaded.");
   return body.report;
+}
+
+export function saveAiReport(analysis: AiAnalysis) {
+  return authenticatedFetch<{ savedReport: AiSavedReport }>("/api/ai/saved-reports", {
+    method: "POST",
+    body: JSON.stringify({
+      period: analysis.period,
+      currency: analysis.currencyCode,
+      report: buildPrintableAiReport(analysis),
+    }),
+  });
+}
+
+export function listAiSavedReports(limit = 50, offset = 0) {
+  const query = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+  return authenticatedFetch<{ reports: AiSavedReportSummary[]; hasMore: boolean }>(`/api/ai/saved-reports?${query.toString()}`);
+}
+
+export function getAiSavedReport(savedReportId: string) {
+  return authenticatedFetch<{ savedReport: AiSavedReport }>(`/api/ai/saved-reports/${encodeURIComponent(savedReportId)}`);
+}
+
+export function deleteAiSavedReport(savedReportId: string) {
+  return authenticatedFetch<{ deleted: boolean }>(`/api/ai/saved-reports/${encodeURIComponent(savedReportId)}`, {
+    method: "DELETE",
+  });
 }

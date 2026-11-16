@@ -8,6 +8,7 @@ import {
   hashReportShareToken,
   isReportShareExpiryDays,
   isReportShareToken,
+  sanitizePrintableAiReportSnapshot,
   sanitizeShareNarrative,
 } from "../src/lib/ai-report-share.ts";
 
@@ -85,6 +86,23 @@ test("server-created snapshots match the report that owners preview and print", 
   const serverReport = buildShareableAiReport(analysis, narrative);
   const printableReport = buildPrintableAiReport({ ...analysis, ai: narrative });
   assert.deepEqual(serverReport, printableReport);
+});
+
+test("saved snapshot sanitization keeps the printable report fields and drops arbitrary account data", () => {
+  const analysis = emptyAnalysis();
+  const report = buildPrintableAiReport({
+    ...analysis,
+    ai: { summary: "A dated snapshot.", recommendations: [] },
+  });
+  const sanitized = sanitizePrintableAiReportSnapshot({
+    ...report,
+    customerEmail: "customer@example.com",
+    credentials: { accessToken: "never-store" },
+  });
+  assert.deepEqual(sanitized, report);
+  assert.equal("customerEmail" in sanitized, false);
+  assert.equal("credentials" in sanitized, false);
+  assert.equal(sanitizePrintableAiReportSnapshot({ ...report, period: "invalid" }), null);
 });
 
 test("share narrative limits text and only retains recommendations tied to evidence", () => {
