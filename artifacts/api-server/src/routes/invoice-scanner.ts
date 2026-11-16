@@ -9,6 +9,7 @@ import {
 } from "@workspace/api-zod";
 import { Router, type IRouter, type Request, type Response } from "express";
 import { completeWithOpenRouter, OpenRouterError } from "../lib/openrouter";
+import { extractNativeInvoiceFromPdf } from "../lib/pdf-invoice-text";
 import {
   buildInvoiceExtractionPrompt,
   extractOcrText,
@@ -232,7 +233,24 @@ router.post("/invoice-scanner/scan", async (req: Request, res: Response): Promis
       sendError(res, 413, "The free OCR plan supports PDFs with up to 3 pages. Split the invoice without removing pages and retry.");
       return;
     }
+
+    try {
+      const nativePdf = await extractNativeInvoiceFromPdf(file);
+      if (nativePdf) {
+        res.json(ScanInvoiceFileResponse.parse({
+          invoice: nativePdf.invoice,
+          extractedText: nativePdf.text,
+          engine,
+          pageCount: nativePdf.pageCount,
+          parseWarning: null,
+        }));
+        return;
+      }
+    } catch (error) {
+      req.log.warn({ err: error }, "Could not read the PDF text layer; falling back to OCR");
+    }
   }
+
   if (!reserveDailyRequest()) {
     sendError(res, 429, "Daftarik has reached its daily OCR safety limit. Try again tomorrow.");
     return;

@@ -29,6 +29,12 @@ export type ExtractedInvoice = {
   warnings: string[];
 };
 
+export type PositionedPdfTextItem = {
+  text: string;
+  x: number;
+  y: number;
+};
+
 const MAX_ITEMS = 100;
 const MAX_TEXT_LENGTH = 40_000;
 const CURRENCIES = new Set(["KWD", "SAR", "AED", "BHD", "QAR", "OMR", "USD"]);
@@ -199,6 +205,7 @@ const PHONE_LABELS = ["supplier phone", "phone", "telephone", "mobile", "هات�
 const EMAIL_LABELS = ["supplier email", "email", "e-mail", "بريد المورد", "البريد الالكتروني", "البريد الإلكتروني"];
 const SUBTOTAL_LABELS = [
   "subtotal", "sub total", "net amount", "before tax", "المجموع الفرعي", "قبل الضريبة", "الاجمالي قبل الضريبة",
+  "المجموع قبل الاضافات", "المجموع قبل الاضافة",
 ];
 const DISCOUNT_LABELS = ["discount", "خصم", "الخصم", "اجمالي الخصم", "إجمالي الخصم"];
 const TAX_LABELS = ["tax", "vat", "sales tax", "ضريبة", "الضريبة", "ضريبة القيمة المضافة"];
@@ -329,6 +336,266 @@ export function hasDetectedInvoiceValues(invoice: ExtractedInvoice): boolean {
     || invoice.total
     || invoice.items.length,
   );
+}
+
+function cleanPdfText(text: string): string {
+  return text
+    .normalize("NFKC")
+    .replace(/[\u200e-\u200f\u202a-\u202e\u2066-\u2069]/g, "")
+    .trim();
+}
+
+function groupPositionedPdfText(items: PositionedPdfTextItem[]): Array<{
+  y: number;
+  items: PositionedPdfTextItem[];
+}> {
+  const lines: Array<{ y: number; items: PositionedPdfTextItem[] }> = [];
+  const sortedItems = items
+    .map((item) => ({ ...item, text: cleanPdfText(item.text) }))
+    .filter((item) => item.text)
+    .sort((left, right) => right.y - left.y || left.x - right.x);
+
+  for (const item of sortedItems) {
+    const line = lines.find((candidate) => Math.abs(candidate.y - item.y) <= 2.5);
+    if (line) {
+      line.items.push(item);
+      line.y = line.items.reduce((sum, lineItem) => sum + lineItem.y, 0) / line.items.length;
+    } else {
+      lines.push({ y: item.y, items: [item] });
+    }
+  }
+
+  return lines
+    .map((line) => ({
+      ...line,
+      items: line.items.sort((left, right) => left.x - right.x),
+    }))
+    .sort((left, right) => right.y - left.y);
+}
+
+const PDF_TABLE_COLUMNS = [
+  { key: "product", labels: ["product", "product name", "item", "description", "المنتج", "الصنف"] },
+  { key: "sku", labels: ["sku", "item code", "product code", "code", "الرمز", "رمز الصنف"] },
+  { key: "quantity", labels: ["quantity", "qty", "الكمية", "العدد"] },
+  { key: "unitPrice", labels: ["unit price", "price per unit", "سعر الوحدة"] },
+  { key: "discount", labels: ["discount", "الخصم", "خصم"] },
+  { key: "lineTotal", labels: ["line total", "amount", "total", "الإجمالي", "الاجمالي"] },
+] as const;
+
+const ALL_POSITIONED_LABELS = [
+  ...INVOICE_NUMBER_LABELS,
+  ...DATE_LABELS,
+  ...SUPPLIER_LABELS,
+  ...PHONE_LABELS,
+  ...EMAIL_LABELS,
+  ...SUBTOTAL_LABELS,
+  ...DISCOUNT_LABELS,
+  ...TAX_LABELS,
+  ...SHIPPING_LABELS,
+  ...OTHER_CHARGE_LABELS,
+  ...TOTAL_LABELS,
+  ...PDF_TABLE_COLUMNS.flatMap((column) => column.labels),
+  "بيانات الفاتورة", "بيانات المورد",
+];
+
+function isPositionedLabel(text: string): boolean {
+  return ALL_POSITIONED_LABELS.some((label) => matchingLabel(text, [label]) !== null);
+}
+
+function positionedValueForLabel(
+  labelItem: PositionedPdfTextItem,
+  lineItems: PositionedPdfTextItem[],
+): string | null {
+  const label = matchingLabel(labelItem.text, ALL_POSITIONED_LABELS);
+  if (!label) return null;
+
+  const inlineValue = valueAfterLabel(labelItem.text, label)
+    .replace(/^[\s:：#-]+/, "")
+    .trim();
+  if (inlineValue && normalizeOcrLabel(inlineValue) !== normalizeOcrLabel(labelItem.text)) {
+    return inlineValue;
+  }
+
+  const isArabicLabel = /[\u0600-\u06ff]/u.test(labelItem.text);
+  const preferredSide = lineItems.filter((item) => {
+    if (item === labelItem || isPositionedLabel(item.text)) return false;
+    return isArabicLabel ? item.x < labelItem.x : item.x > labelItem.x;
+  });
+  const otherSide = lineItems.filter((item) => {
+    if (item === labelItem || isPositionedLabel(item.text)) return false;
+    return isArabicLabel ? item.x > labelItem.x : item.x < labelItem.x;
+  });
+  const candidates = preferredSide.length ? preferredSide : otherSide;
+  return candidates
+    .slice()
+    .sort((left, right) => Math.abs(left.x - labelItem.x) - Math.abs(right.x - labelItem.x))[0]?.text ?? null;
+}
+
+function positionedFieldValue(
+  lines: Array<{ y: number; items: PositionedPdfTextItem[] }>,
+  labels: string[],
+): string | null {
+  for (const line of lines) {
+    for (const item of line.items) {
+      if (matchingLabel(item.text, labels)) {
+        const value = positionedValueForLabel(item, line.items);
+        if (value) return value;
+      }
+    }
+  }
+  return null;
+}
+
+function positionedAmountValue(
+  lines: Array<{ y: number; items: PositionedPdfTextItem[] }>,
+  labels: string[],
+  options: { skipSubtotal?: boolean } = {},
+): string | null {
+  for (const line of lines) {
+    for (const item of line.items) {
+      if (!matchingLabel(item.text, labels)) continue;
+      if (options.skipSubtotal && matchingLabel(item.text, SUBTOTAL_LABELS)) continue;
+      const value = positionedValueForLabel(item, line.items);
+      if (!value) continue;
+      const amount = amountFromLine(value);
+      if (amount) return amount;
+    }
+  }
+  return null;
+}
+
+function tableColumnForText(text: string): string | null {
+  for (const column of PDF_TABLE_COLUMNS) {
+    if (matchingLabel(text, [...column.labels])) return column.key;
+  }
+  return null;
+}
+
+function parseAmountMilli(value: string | null | undefined): bigint | null {
+  const normalized = amountText(value);
+  if (!normalized) return null;
+  const match = /^(-?)(\d+)(?:\.(\d{1,3}))?$/.exec(normalized);
+  if (!match) return null;
+  const magnitude = BigInt(match[2]) * 1_000n + BigInt((match[3] ?? "").padEnd(3, "0") || "0");
+  return match[1] === "-" ? -magnitude : magnitude;
+}
+
+function formatAmountMilli(value: bigint): string {
+  const sign = value < 0n ? "-" : "";
+  const magnitude = value < 0n ? -value : value;
+  return `${sign}${magnitude / 1_000n}.${String(magnitude % 1_000n).padStart(3, "0")}`;
+}
+
+function grossLineTotal(quantity: string, unitPrice: string): string | null {
+  const quantityMilli = parseAmountMilli(quantity);
+  const unitPriceMilli = parseAmountMilli(unitPrice);
+  if (quantityMilli === null || unitPriceMilli === null) return null;
+  return formatAmountMilli((quantityMilli * unitPriceMilli + 500n) / 1_000n);
+}
+
+function extractPdfTableItems(
+  lines: Array<{ y: number; items: PositionedPdfTextItem[] }>,
+): ExtractedInvoiceItem[] {
+  const headerCandidates = lines.flatMap((line) => {
+    const columns = line.items.flatMap((item) => {
+      const key = tableColumnForText(item.text);
+      return key ? [{ key, x: item.x }] : [];
+    });
+    const required = ["product", "quantity", "unitPrice", "lineTotal"];
+    return required.every((key) => columns.some((column) => column.key === key)) && columns.length >= 4
+      ? [{ y: line.y, columns }]
+      : [];
+  });
+  const header = headerCandidates[0];
+  if (!header) return [];
+
+  const items: ExtractedInvoiceItem[] = [];
+  for (const line of lines.filter((candidate) => candidate.y < header.y)) {
+    const values = new Map<string, string>();
+    for (const column of header.columns) {
+      const nearest = line.items
+        .map((item) => ({ item, distance: Math.abs(item.x - column.x) }))
+        .filter(({ item, distance }) => distance <= 90 && !tableColumnForText(item.text))
+        .sort((left, right) => left.distance - right.distance)[0]?.item;
+      if (nearest && !values.has(column.key)) values.set(column.key, nearest.text);
+    }
+
+    const productName = values.get("product")?.trim() ?? "";
+    const quantity = amountText(values.get("quantity"));
+    const unitPurchasePrice = amountText(values.get("unitPrice"));
+    const printedLineTotal = amountText(values.get("lineTotal"));
+    const lineTotal = quantity && unitPurchasePrice ? grossLineTotal(quantity, unitPurchasePrice) : null;
+    if (
+      !productName
+      || !/\p{L}/u.test(productName)
+      || !quantity
+      || !unitPurchasePrice
+      || !printedLineTotal
+      || !lineTotal
+    ) continue;
+
+    items.push({
+      productName: productName.slice(0, 160),
+      description: "",
+      sku: boundedText(values.get("sku"), 100),
+      quantity,
+      unitOfMeasure: "",
+      unitPurchasePrice,
+      lineTotal,
+      discount: amountText(values.get("discount")),
+      confidence: "high",
+    });
+  }
+
+  return items.slice(0, MAX_ITEMS);
+}
+
+function grossSubtotalFromItems(items: ExtractedInvoiceItem[]): string | null {
+  const lineTotals = items.map((item) => parseAmountMilli(item.lineTotal));
+  if (!lineTotals.length || lineTotals.some((value) => value === null)) return null;
+  let subtotal = 0n;
+  for (const lineTotal of lineTotals) {
+    if (lineTotal === null) return null;
+    subtotal += lineTotal;
+  }
+  return formatAmountMilli(subtotal);
+}
+
+export function extractInvoiceFromPdfTextItems(items: PositionedPdfTextItem[]): {
+  invoice: ExtractedInvoice;
+  text: string;
+} {
+  const lines = groupPositionedPdfText(items);
+  const text = lines
+    .map((line) => line.items.map((item) => item.text).join("    "))
+    .join("\n")
+    .slice(0, MAX_TEXT_LENGTH);
+  const invoiceNumber = positionedFieldValue(lines, INVOICE_NUMBER_LABELS);
+  const invoiceDate = positionedFieldValue(lines, DATE_LABELS);
+  const supplierName = positionedFieldValue(lines, SUPPLIER_LABELS);
+  const supplierPhone = positionedFieldValue(lines, PHONE_LABELS);
+  const supplierEmail = positionedFieldValue(lines, EMAIL_LABELS);
+  const invoiceItems = extractPdfTableItems(lines);
+
+  return {
+    text,
+    invoice: {
+      invoiceNumber: optionalText(invoiceNumber, 100),
+      invoiceDate: invoiceDate ? parseOcrDate(invoiceDate) : null,
+      supplierName: optionalText(supplierName, 160),
+      supplierPhone: optionalText(supplierPhone, 40),
+      supplierEmail: optionalText(supplierEmail?.match(/[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}/)?.[0], 254),
+      currencyCode: detectCurrency(text),
+      subtotal: grossSubtotalFromItems(invoiceItems) ?? positionedAmountValue(lines, SUBTOTAL_LABELS),
+      discount: positionedAmountValue(lines, DISCOUNT_LABELS),
+      tax: positionedAmountValue(lines, TAX_LABELS),
+      shippingFee: positionedAmountValue(lines, SHIPPING_LABELS),
+      otherCharges: positionedAmountValue(lines, OTHER_CHARGE_LABELS),
+      total: positionedAmountValue(lines, TOTAL_LABELS, { skipSubtotal: true }),
+      items: invoiceItems,
+      warnings: [],
+    },
+  };
 }
 
 export function normalizeExtractedInvoice(raw: string): ExtractedInvoice {
