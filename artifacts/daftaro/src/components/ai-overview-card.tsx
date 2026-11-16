@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowUpRight, Bot, LoaderCircle, Sparkles } from "lucide-react";
 import { getAiAnalysis, localizeAiError, type AiAnalysis, type AiLanguage } from "../lib/ai-api";
+import { getDisplayedAiNarrative } from "../lib/ai-narrative-display";
 import type { DashboardDateRange } from "../lib/dashboard-data";
 
 export function AiOverviewCard({
@@ -56,6 +57,9 @@ export function AiOverviewCard({
   const panelClass = isDark ? "border-white/10 bg-[#17243a] text-[#f4f0e7]" : "border-[#e3e8e5] bg-[#fffefa] text-[#172639]";
   const mutedClass = isDark ? "text-[#aab5c5]" : "text-[#718092]";
   const visibleAnalysis = analysisKey === requestKey ? analysis : null;
+  const visibleNarrative = visibleAnalysis
+    ? getDisplayedAiNarrative(visibleAnalysis, language)
+    : null;
 
   return (
     <section className={`mb-5 rounded-[22px] border p-5 sm:p-6 ${panelClass}`} data-testid="ai-overview-card">
@@ -76,10 +80,10 @@ export function AiOverviewCard({
       </div>
       {visibleAnalysis && (
         <div className="mt-4 rounded-xl border border-[#dfe9e4] bg-[#f6f9f6] p-4 text-sm leading-7 text-[#344258] dark:border-white/10 dark:bg-white/5 dark:text-[#d9dfeb]" data-testid="ai-overview-result">
-          <p>{visibleAnalysis.ai.summary || visibleAnalysis.aiError || (ar ? "لم تتوفر صياغة من الذكاء الاصطناعي. راجعي الأرقام الموثقة في صفحة الرؤى." : "No AI narrative was returned. Review the verified figures on the insights page.")}</p>
-          {visibleAnalysis.ai.recommendations.length > 0 && (
+          <p>{visibleNarrative?.summary || visibleAnalysis.aiError || (ar ? "لم تتوفر صياغة من الذكاء الاصطناعي. راجعي الأرقام الموثقة في صفحة الرؤى." : "No AI narrative was returned. Review the verified figures on the insights page.")}</p>
+          {visibleNarrative && visibleNarrative.recommendations.length > 0 && (
             <ul className="mt-3 list-disc space-y-1 pe-5 text-xs">
-              {visibleAnalysis.ai.recommendations.slice(0, 3).map((item) => <li key={item.evidenceId}>{item.advice}</li>)}
+              {visibleNarrative.recommendations.slice(0, 3).map((item) => <li key={item.evidenceId}>{item.advice}</li>)}
             </ul>
           )}
         </div>

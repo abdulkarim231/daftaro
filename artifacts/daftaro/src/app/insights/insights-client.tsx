@@ -9,6 +9,7 @@ import { AiReportSharingPanel } from "../../components/ai-report-sharing-panel";
 import { PrintableAiReport } from "../../components/printable-ai-report";
 import { useAppLanguage } from "../../hooks/use-app-language";
 import { supabase } from "../../lib/supabase";
+import { getLocalizedAiAnalysis } from "../../lib/ai-narrative-display";
 import {
   askDaftaro,
   clearAiChatHistory,
@@ -143,6 +144,10 @@ export default function InsightsClient() {
   const chatUserId = useRef<string | null>(userId);
   const rtl = language === "ar";
   const text = COPY[language];
+  const localizedAnalysis = useMemo(
+    () => analysis ? getLocalizedAiAnalysis(analysis, language) : null,
+    [analysis, language],
+  );
   const productLoadErrorText = useRef(text.loadProductsError);
   productLoadErrorText.current = text.loadProductsError;
   const chatHistoryErrorCopy = useRef({
@@ -499,8 +504,8 @@ export default function InsightsClient() {
               <p className={`mt-3 text-[11px] leading-5 ${muted}`}>{text.chartNote}</p>
               <div className="mt-5 rounded-[15px] border border-[#dfe9e4] bg-[#f6f9f6] p-4" data-testid="ai-analysis-narrative">
                 <div className="mb-2 flex items-center gap-2 text-[#167b70]"><Bot size={16} /><h3 className="text-xs font-extrabold">{rtl ? "تفسير الذكاء الاصطناعي" : "AI explanation"}</h3></div>
-                {analysis.ai.summary ? <p className="text-sm leading-7 text-[#344258]">{analysis.ai.summary}</p> : <p className="text-sm leading-7 text-[#778594]">{analysis.aiError ? localizeAiError(analysis.aiError, language) : text.noNarrative}</p>}
-                {analysis.ai.recommendations.length > 0 && <ul className="mt-3 space-y-2">{analysis.ai.recommendations.map((item) => <li key={item.evidenceId} className="rounded-lg bg-white px-3 py-2 text-xs leading-6 text-[#344258]"><span className="me-2 text-[10px] font-bold text-[#167b70]">{text.evidence}</span>{item.advice}</li>)}</ul>}
+                {localizedAnalysis?.ai.summary ? <p className="text-sm leading-7 text-[#344258]">{localizedAnalysis.ai.summary}</p> : <p className="text-sm leading-7 text-[#778594]">{analysis.aiError ? localizeAiError(analysis.aiError, language) : text.noNarrative}</p>}
+                {localizedAnalysis && localizedAnalysis.ai.recommendations.length > 0 && <ul className="mt-3 space-y-2">{localizedAnalysis.ai.recommendations.map((item) => <li key={item.evidenceId} className="rounded-lg bg-white px-3 py-2 text-xs leading-6 text-[#344258]"><span className="me-2 text-[10px] font-bold text-[#167b70]">{text.evidence}</span>{item.advice}</li>)}</ul>}
               </div>
             </section>
 
@@ -547,8 +552,8 @@ export default function InsightsClient() {
           </>
         )}
 
-        {analysis && analysis.period === period && <AiReportSharingPanel analysis={analysis} language={language} />}
-        {analysis && analysis.period === period && <AiReportHistoryPanel analysis={analysis} language={language} />}
+        {localizedAnalysis && localizedAnalysis.period === period && <AiReportSharingPanel analysis={localizedAnalysis} language={language} />}
+        {localizedAnalysis && localizedAnalysis.period === period && <AiReportHistoryPanel analysis={localizedAnalysis} language={language} />}
 
         <section id="pricing" className={panel} data-testid="ai-pricing-advisor">
           <div className="mb-4 flex items-center gap-2 text-[#167b70]"><Tag size={17} /><h2 className="text-lg font-extrabold text-[#172639]">{text.advisor}</h2></div>
@@ -585,7 +590,7 @@ export default function InsightsClient() {
           </form>
         </section>
       </div>
-      {analysis && analysis.period === period && <PrintableAiReport report={buildPrintableAiReport(analysis)} language={language} />}
+      {localizedAnalysis && localizedAnalysis.period === period && <PrintableAiReport report={buildPrintableAiReport(localizedAnalysis)} language={language} />}
     </main>
   );
 }
