@@ -91,15 +91,18 @@ const copy = {
     uploadTitle: "ارفع فاتورة أو صوّرها",
     uploadText: "اسحب ملف JPG أو PNG أو PDF إلى هنا، أو اختره من جهازك.",
     chooseFile: "اختيار ملف",
-    camera: "التصوير بالكاميرا",
+    camera: "تصوير الفاتورة",
     supported: "JPG وPNG وPDF",
     dropHere: "أفلت الملف هنا",
     selectedFile: "الملف المحدد",
+    removeFile: "إزالة ملف الفاتورة",
+    originalInvoice: "معاينة الفاتورة الأصلية",
     compress: "ضغط الملف إلى أقل من 1 ميغابايت",
     compressing: "جارٍ ضغط الملف محليًا…",
     compressed: "تم ضغط الملف في متصفحك. لم يُرسل للمسح بعد.",
     scan: "قراءة الفاتورة",
-    scanning: "جارٍ قراءة الفاتورة…",
+    scanning: "جارٍ إرسال الملف وقراءة الفاتورة…",
+    scanProgress: "جارٍ إرسال الملف وقراءة محتواه واستخراج البيانات.",
     engine: "محرك القراءة",
     engine2: "المحرك 2",
     engine3: "المحرك 3",
@@ -143,6 +146,10 @@ const copy = {
     noProducts: "لا توجد منتجات لمطابقتها",
     sellingPrice: "سعر البيع المطلوب",
     sellingPriceNote: "لا نستخدم سعر الشراء كسعر بيع.",
+    currentProduct: "بيانات المنتج الحالي",
+    currentStock: "المخزون الحالي",
+    currentSellingPrice: "سعر البيع الحالي",
+    currentMaterialsCost: "تكلفة المواد الحالية",
     updateCost: "تحديث تكلفة المواد إلى سعر الشراء",
     updateCostNote: "هذا الخيار يحدّث تكلفة المنتج الحالية فقط بعد تأكيدك. يبقى سعر البيع كما هو.",
     newProductCostNote: "للمنتج الجديد، تُسجل تكلفة الوحدة من الفاتورة إذا كانت العملة مطابقة لعملة نشاطك.",
@@ -179,6 +186,7 @@ const copy = {
     invalidAmount: "تحقق من مبالغ الفاتورة؛ استخدم أرقامًا موجبة وبحد أقصى 3 خانات عشرية.",
     invalidTotal: "أدخل إجماليًا نهائيًا أكبر من صفر.",
     balanceMismatch: "المبالغ لا تتطابق: راجع إجمالي البنود والخصومات والضريبة والرسوم والإجمالي النهائي.",
+    balanceWarning: "هناك اختلاف بين مبالغ البنود أو المجموع أو الإجمالي النهائي. راجع الأرقام المظللة؛ لم نغيّر أي مبلغ تلقائيًا.",
     invalidQuantity: "أدخل كمية أكبر من صفر لكل بند.",
     integerQuantity: "إضافة المخزون تتطلب كمية صحيحة من دون كسور. يمكنك حفظ هذا البند دون إضافته للمخزون.",
     selectProduct: "اختر منتجًا موجودًا أو غيّر الإجراء.",
@@ -213,15 +221,18 @@ const copy = {
     uploadTitle: "Upload or photograph an invoice",
     uploadText: "Drop a JPG, PNG, or PDF here, or choose it from your device.",
     chooseFile: "Choose a file",
-    camera: "Use camera",
+    camera: "Photograph invoice",
     supported: "JPG, PNG, and PDF",
     dropHere: "Drop the file here",
     selectedFile: "Selected file",
+    removeFile: "Remove invoice file",
+    originalInvoice: "Original invoice preview",
     compress: "Compress to under 1 MB",
     compressing: "Compressing locally…",
     compressed: "Compressed in your browser. It has not been sent for scanning.",
     scan: "Read invoice",
-    scanning: "Reading invoice…",
+    scanning: "Sending file and reading invoice…",
+    scanProgress: "Uploading the file, reading it, and extracting invoice details.",
     engine: "OCR engine",
     engine2: "Engine 2",
     engine3: "Engine 3",
@@ -265,6 +276,10 @@ const copy = {
     noProducts: "No products to match",
     sellingPrice: "Required selling price",
     sellingPriceNote: "Purchase price is never used as the selling price.",
+    currentProduct: "Current product details",
+    currentStock: "Current stock",
+    currentSellingPrice: "Current selling price",
+    currentMaterialsCost: "Current materials cost",
     updateCost: "Update materials cost to purchase price",
     updateCostNote: "This updates the current product cost only after you confirm. The selling price stays unchanged.",
     newProductCostNote: "For a new product, the invoice unit cost is saved as its materials cost when currencies match.",
@@ -301,6 +316,7 @@ const copy = {
     invalidAmount: "Check invoice amounts; use positive values with up to 3 decimal places.",
     invalidTotal: "Enter a final total greater than zero.",
     balanceMismatch: "The amounts do not balance. Check item totals, discounts, tax, charges, and the final total.",
+    balanceWarning: "Invoice amounts do not balance. Review the highlighted line, subtotal, or final total; no amount was changed automatically.",
     invalidQuantity: "Enter a quantity greater than zero for each item.",
     integerQuantity: "Stock updates require a whole-number quantity. You can save this item without adding stock.",
     selectProduct: "Choose an existing product or change the action.",
@@ -422,26 +438,41 @@ function expectedInvoiceTotalMilli(draft: InvoiceDraft) {
   return subtotal - headerDiscount - itemDiscountMilli(draft.items) + tax + shipping + other;
 }
 
-function invoiceAmountsBalance(draft: InvoiceDraft) {
-  const lineTotals = draft.items.map((item) => {
-    const quantity = parseAmountToMilli(normalizeAmountInput(item.quantity));
-    const unitPrice = parseAmountToMilli(normalizeAmountInput(item.unitPurchasePrice));
-    const lineTotal = parseAmountToMilli(normalizeAmountInput(item.lineTotal)) ?? parseAmountToMilli(amountProduct(item.quantity, item.unitPurchasePrice));
-    if (quantity === null || unitPrice === null || lineTotal === null) return null;
-    const calculatedLine = (quantity * unitPrice + 500n) / 1000n;
-    return absoluteDifference(calculatedLine, lineTotal) <= 1n ? lineTotal : null;
-  });
-  const validLineTotals = lineTotals.filter((value): value is bigint => value !== null);
-  if (validLineTotals.length !== draft.items.length) return false;
-  const sumLines = validLineTotals.reduce((sum, line) => sum + line, 0n);
+function invoiceLineAmountsBalance(item: InvoiceItemDraft): boolean | null {
+  const quantity = parseAmountToMilli(normalizeAmountInput(item.quantity));
+  const unitPrice = parseAmountToMilli(normalizeAmountInput(item.unitPurchasePrice));
+  const lineTotal = parseAmountToMilli(normalizeAmountInput(item.lineTotal))
+    ?? parseAmountToMilli(amountProduct(item.quantity, item.unitPurchasePrice));
+  if (quantity === null || unitPrice === null || lineTotal === null) return null;
+  const calculatedLine = (quantity * unitPrice + 500n) / 1000n;
+  return absoluteDifference(calculatedLine, lineTotal) <= 1n;
+}
+
+function invoiceSubtotalBalances(draft: InvoiceDraft): boolean | null {
   const subtotal = parseAmountToMilli(normalizeAmountInput(draft.subtotal));
-  if (subtotal !== null && absoluteDifference(subtotal, sumLines) > 1n) return false;
+  const lineTotals = draft.items.map((item) => {
+    const lineTotal = parseAmountToMilli(normalizeAmountInput(item.lineTotal))
+      ?? parseAmountToMilli(amountProduct(item.quantity, item.unitPurchasePrice));
+    return lineTotal;
+  });
+  const validLineTotals = lineTotals.filter((lineTotal): lineTotal is bigint => lineTotal !== null);
+  if (subtotal === null || validLineTotals.length !== draft.items.length) return null;
+  const sumLines = validLineTotals.reduce((sum, lineTotal) => sum + lineTotal, 0n);
+  return absoluteDifference(subtotal, sumLines) <= 1n;
+}
+
+function invoiceFinalTotalBalances(draft: InvoiceDraft): boolean | null {
   const expectedTotal = expectedInvoiceTotalMilli(draft);
   const invoiceTotal = parseAmountToMilli(normalizeAmountInput(draft.total));
-  return expectedTotal !== null
-    && invoiceTotal !== null
-    && expectedTotal >= 0n
-    && absoluteDifference(expectedTotal, invoiceTotal) <= 1n;
+  if (expectedTotal === null || invoiceTotal === null) return null;
+  return expectedTotal >= 0n && absoluteDifference(expectedTotal, invoiceTotal) <= 1n;
+}
+
+function invoiceAmountsBalance(draft: InvoiceDraft) {
+  return draft.items.length > 0
+    && draft.items.every((item) => invoiceLineAmountsBalance(item) === true)
+    && invoiceSubtotalBalances(draft) !== false
+    && invoiceFinalTotalBalances(draft) === true;
 }
 
 function parseEngineDraft(result: InvoiceScanResult, products: Product[]) {
@@ -725,6 +756,14 @@ export default function InvoiceScannerClient() {
   const newProductCount = useMemo(
     () => draft?.items.filter((item) => item.action === "create").length ?? 0,
     [draft],
+  );
+  const subtotalBalances = draft ? invoiceSubtotalBalances(draft) : null;
+  const finalTotalBalances = draft ? invoiceFinalTotalBalances(draft) : null;
+  const invoiceHasAmountMismatch = Boolean(
+    draft
+    && (draft.items.some((item) => invoiceLineAmountsBalance(item) === false)
+      || subtotalBalances === false
+      || finalTotalBalances === false),
   );
 
   async function selectFile(selected: File | undefined) {
@@ -1241,7 +1280,7 @@ export default function InvoiceScannerClient() {
                         type="button"
                         onClick={resetScanner}
                         className="grid size-9 shrink-0 place-items-center rounded-lg text-[#7c8996] hover:bg-white hover:text-[#9d403d]"
-                        aria-label={text.removeItem}
+                        aria-label={text.removeFile}
                         data-testid="button-remove-invoice-file"
                       >
                         <X size={17} />
@@ -1295,6 +1334,17 @@ export default function InvoiceScannerClient() {
                 {scanning ? <LoaderCircle size={16} className="animate-spin" /> : <ScanLine size={16} />}
                 {scanning ? text.scanning : text.scan}
               </button>
+              {scanning && (
+                <div
+                  role="progressbar"
+                  aria-label={text.scan}
+                  aria-valuetext={text.scanProgress}
+                  className="mt-3 h-2 w-full overflow-hidden rounded-full bg-[#e4ece7]"
+                  data-testid="progress-scan-invoice"
+                >
+                  <div className="h-full w-2/5 animate-pulse rounded-full bg-[#167b70]" />
+                </div>
+              )}
             </div>
             <aside className="space-y-4">
               <div className="rounded-2xl border border-[#dbe8e2] bg-[#f3f8f4] p-4">
@@ -1351,6 +1401,27 @@ export default function InvoiceScannerClient() {
             {draft.currencyCode && draft.currencyCode !== currency && (
               <div className="rounded-2xl border border-[#eddfba] bg-[#fff9e9] px-4 py-3 text-sm leading-6 text-[#7a6333]" data-testid="warning-invoice-currency">{text.currencyWarning}</div>
             )}
+            {invoiceHasAmountMismatch && (
+              <div role="alert" className="flex items-start gap-3 rounded-2xl border border-[#f0c6bc] bg-[#fff2ee] px-4 py-3 text-sm leading-6 text-[#934c40]" data-testid="warning-invoice-amount-mismatch">
+                <AlertCircle size={18} className="mt-1 shrink-0" />
+                <span>{text.balanceWarning}</span>
+              </div>
+            )}
+            {file && previewUrl && (
+              <details className="rounded-2xl border border-[#e5e9e4] bg-[#fbfcfa] p-4" data-testid="details-original-invoice-preview">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-bold text-[#45556a]">
+                  {text.originalInvoice}<ChevronDown size={16} />
+                </summary>
+                <div className="mt-3">
+                  {fileInfo?.type === "application/pdf" ? (
+                    <iframe title={text.originalInvoice} src={previewUrl} className="h-72 w-full rounded-xl border border-[#e3e8e3] bg-white" data-testid="preview-original-invoice-pdf" />
+                  ) : (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={previewUrl} alt={text.originalInvoice} className="max-h-[480px] w-full rounded-xl border border-[#e3e8e3] bg-white object-contain p-2" data-testid="preview-original-invoice-image" />
+                  )}
+                </div>
+              </details>
+            )}
               <div className="invoice-fields grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <label><span className={labelClass}>{text.invoiceNumber}</span><input value={draft.invoiceNumber} onChange={(event) => updateHeader("invoiceNumber", event.target.value)} className={fieldClass} maxLength={100} data-testid="input-invoice-number" /></label>
               <label><span className={labelClass}>{text.invoiceDate}</span><input type="date" value={draft.invoiceDate} onChange={(event) => updateHeader("invoiceDate", event.target.value)} className={fieldClass} data-testid="input-invoice-date" /></label>
@@ -1358,12 +1429,12 @@ export default function InvoiceScannerClient() {
               <label><span className={labelClass}>{text.currency}</span><select value={draft.currencyCode} onChange={(event) => updateHeader("currencyCode", event.target.value)} className={fieldClass} data-testid="select-invoice-currency"><option value="" disabled>{text.chooseCurrency}</option>{CURRENCIES.map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
               <label><span className={labelClass}>{text.supplierPhone}</span><input value={draft.supplierPhone} onChange={(event) => updateHeader("supplierPhone", event.target.value)} className={fieldClass} maxLength={40} data-testid="input-supplier-phone" /></label>
               <label><span className={labelClass}>{text.supplierEmail}</span><input type="email" value={draft.supplierEmail} onChange={(event) => updateHeader("supplierEmail", event.target.value)} className={fieldClass} maxLength={254} data-testid="input-supplier-email" /></label>
-              <label><span className={labelClass}>{text.subtotal}</span><input inputMode="decimal" value={draft.subtotal} onChange={(event) => updateHeader("subtotal", event.target.value)} className={fieldClass} data-testid="input-invoice-subtotal" /></label>
+              <label><span className={labelClass}>{text.subtotal}</span><input inputMode="decimal" value={draft.subtotal} onChange={(event) => updateHeader("subtotal", event.target.value)} className={`${fieldClass} ${subtotalBalances === false ? "border-[#c45a4d] bg-[#fff3ef] text-[#90453b]" : ""}`} aria-invalid={subtotalBalances === false} data-testid="input-invoice-subtotal" /></label>
               <label><span className={labelClass}>{text.discount}</span><input inputMode="decimal" value={draft.discount} onChange={(event) => updateHeader("discount", event.target.value)} className={fieldClass} data-testid="input-invoice-discount" /></label>
               <label><span className={labelClass}>{text.tax}</span><input inputMode="decimal" value={draft.tax} onChange={(event) => updateHeader("tax", event.target.value)} className={fieldClass} data-testid="input-invoice-tax" /></label>
               <label><span className={labelClass}>{text.shipping}</span><input inputMode="decimal" value={draft.shippingFee} onChange={(event) => updateHeader("shippingFee", event.target.value)} className={fieldClass} data-testid="input-invoice-shipping" /></label>
               <label><span className={labelClass}>{text.otherCharges}</span><input inputMode="decimal" value={draft.otherCharges} onChange={(event) => updateHeader("otherCharges", event.target.value)} className={fieldClass} data-testid="input-invoice-other-charges" /></label>
-              <label><span className={labelClass}>{text.total}</span><input inputMode="decimal" value={draft.total} onChange={(event) => updateHeader("total", event.target.value)} className={`${fieldClass} border-[#c8d9d2] font-extrabold`} data-testid="input-invoice-total" /></label>
+              <label><span className={labelClass}>{text.total}</span><input inputMode="decimal" value={draft.total} onChange={(event) => updateHeader("total", event.target.value)} className={`${fieldClass} border-[#c8d9d2] font-extrabold ${finalTotalBalances === false ? "border-[#c45a4d] bg-[#fff3ef] text-[#90453b]" : ""}`} aria-invalid={finalTotalBalances === false} data-testid="input-invoice-total" /></label>
             </div>
 
             <div className="space-y-4 border-t border-[#e8ebe6] pt-5">
@@ -1382,6 +1453,8 @@ export default function InvoiceScannerClient() {
               {draft.items.map((item, index) => {
                 const suggestions = getProductSuggestions(item.productName, products);
                 const quantityMilli = parseAmountToMilli(normalizeAmountInput(item.quantity));
+                const matchedProduct = products.find((product) => product.id === item.productId);
+                const lineBalances = invoiceLineAmountsBalance(item);
                 return (
                   <article key={`invoice-item-${index}`} className="invoice-line-card rounded-2xl border border-[#e1e7df] bg-[#fbfcfa] p-4 sm:p-5" data-testid={`card-invoice-item-${index}`}>
                     <div className="mb-4 flex items-center justify-between gap-3">
@@ -1409,12 +1482,22 @@ export default function InvoiceScannerClient() {
                       <label><span className={labelClass}>{text.quantity}</span><input inputMode="decimal" value={item.quantity} onChange={(event) => updateItem(index, "quantity", event.target.value)} className={fieldClass} data-testid={`input-invoice-item-quantity-${index}`} /></label>
                       <label><span className={labelClass}>{text.unit}</span><input value={item.unitOfMeasure} onChange={(event) => updateItem(index, "unitOfMeasure", event.target.value)} className={fieldClass} maxLength={32} data-testid={`input-invoice-item-unit-${index}`} /></label>
                       <label><span className={labelClass}>{text.purchasePrice}</span><input inputMode="decimal" value={item.unitPurchasePrice} onChange={(event) => updateItem(index, "unitPurchasePrice", event.target.value)} className={fieldClass} data-testid={`input-invoice-item-price-${index}`} /></label>
-                      <label><span className={labelClass}>{text.lineTotal}</span><input inputMode="decimal" value={item.lineTotal} onChange={(event) => updateItem(index, "lineTotal", event.target.value)} className={fieldClass} data-testid={`input-invoice-item-total-${index}`} /></label>
+                       <label><span className={labelClass}>{text.lineTotal}</span><input inputMode="decimal" value={item.lineTotal} onChange={(event) => updateItem(index, "lineTotal", event.target.value)} className={`${fieldClass} ${lineBalances === false ? "border-[#c45a4d] bg-[#fff3ef] text-[#90453b]" : ""}`} aria-invalid={lineBalances === false} data-testid={`input-invoice-item-total-${index}`} /></label>
                       <label><span className={labelClass}>{text.lineDiscount}</span><input inputMode="decimal" value={item.discount} onChange={(event) => updateItem(index, "discount", event.target.value)} className={fieldClass} data-testid={`input-invoice-item-discount-${index}`} /></label>
                       <label className="sm:col-span-2"><span className={labelClass}>{text.productAction}</span><select value={item.action} onChange={(event) => changeAction(index, event.target.value as InvoiceProductAction)} className={fieldClass} data-testid={`select-invoice-item-action-${index}`}><option value="match">{text.matchExisting}</option><option value="create">{text.createProduct}</option><option value="skip">{text.skipStock}</option></select></label>
                       {item.action === "match" && (
                         <>
                           <label className="sm:col-span-2"><span className={labelClass}>{text.chooseProduct}</span><select value={item.productId ?? ""} onChange={(event) => selectProduct(index, event.target.value)} className={fieldClass} data-testid={`select-invoice-item-product-${index}`}><option value="">{products.length ? text.chooseProduct : text.noProducts}</option>{products.map((product) => <option key={product.id} value={product.id}>{product.name} · {product.available_quantity} {text.units}</option>)}</select></label>
+                           {matchedProduct && (
+                             <div className="rounded-xl border border-[#dce8df] bg-[#f2f7f2] p-3 sm:col-span-4" data-testid={`details-matched-product-${index}`}>
+                               <p className="mb-2 text-xs font-extrabold text-[#315f54]">{text.currentProduct}: {matchedProduct.name}</p>
+                               <div className="grid gap-2 text-xs sm:grid-cols-3">
+                                 <p className="rounded-lg bg-white px-3 py-2 text-[#657386]"><span className="block">{text.currentStock}</span><strong className="mt-1 block text-[#26384a]">{new Intl.NumberFormat(language === "ar" ? "ar-KW" : "en-KW", { maximumFractionDigits: 3 }).format(Number(matchedProduct.available_quantity) || 0)} {text.units}</strong></p>
+                                 <p className="rounded-lg bg-white px-3 py-2 text-[#657386]"><span className="block">{text.currentSellingPrice}</span><strong className="mt-1 block text-[#26384a]">{formatCurrency(matchedProduct.selling_price, matchedProduct.currency_code || currency, language)}</strong></p>
+                                 <p className="rounded-lg bg-white px-3 py-2 text-[#657386]"><span className="block">{text.currentMaterialsCost}</span><strong className="mt-1 block text-[#26384a]">{formatCurrency(matchedProduct.materials_cost, matchedProduct.currency_code || currency, language)}</strong></p>
+                               </div>
+                             </div>
+                           )}
                           <label className={`flex items-start gap-2 rounded-xl border border-[#e5e9e4] bg-white p-3 text-xs leading-5 text-[#59697c] sm:col-span-2 ${draft.currencyCode !== currency ? "opacity-60" : ""}`}>
                             <input type="checkbox" checked={item.updateMaterialsCost} disabled={draft.currencyCode !== currency} onChange={(event) => updateItem(index, "updateMaterialsCost", event.target.checked)} className="mt-1 accent-[#167b70]" data-testid={`checkbox-update-product-cost-${index}`} />
                             <span><strong className="block text-[#35465a]">{text.updateCost}</strong>{text.updateCostNote}</span>

@@ -1,2 +1,3 @@
 - [GitHub access in Replit](github-shell-access.md) — when connector status stays pending, check authenticated `gh`; guarded Git edits may need explicit opt-in.
 - [Next.js preview origins](next-preview-origins.md) — Replit's proxied dev hostname must be allowed for Next.js HMR; localhost alone is insufficient.
+- [Supabase migration connection strings](supabase-migration-url.md) — if direct `psql` URL parsing fails, parse credentials safely and pass the password through `PGPASSWORD`.
