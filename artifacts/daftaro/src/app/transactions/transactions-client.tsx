@@ -19,12 +19,15 @@ import {
   X,
 } from "lucide-react";
 import { calculateFinancialSummaries } from "../../lib/financial-summary";
+import { getDateRangeForPreset } from "../../lib/dashboard-data";
 import {
   formatMarginHundredths,
   formatMilliAmount,
   parseAmountToMilli,
 } from "../../lib/money";
 import { AppHeader } from "../../components/app-header";
+import { AiOverviewCard } from "../../components/ai-overview-card";
+import TransactionsAnalytics from "../../components/transactions-analytics";
 import { useAppLanguage } from "../../hooks/use-app-language";
 import { usePageReturnRefresh } from "../../hooks/use-page-return-refresh";
 import { supabase } from "../../lib/supabase";
@@ -281,6 +284,10 @@ export default function TransactionsClient() {
   const financialSummaries = useMemo(
     () => calculateFinancialSummaries(transactions, currency),
     [transactions, currency],
+  );
+  const insightsDateRange = useMemo(
+    () => getDateRangeForPreset("30d", today()),
+    [],
   );
 
   useEffect(() => {
@@ -609,6 +616,23 @@ export default function TransactionsClient() {
             </div>
           )}
         </section>
+
+        {!loading && !loadError && (
+          <>
+            <AiOverviewCard
+              language={language}
+              currency={currency}
+              dateRange={insightsDateRange}
+            />
+            <div className="mb-5">
+              <TransactionsAnalytics
+                transactions={transactions}
+                language={language}
+                currency={currency}
+              />
+            </div>
+          </>
+        )}
 
         <section className="overflow-hidden rounded-[22px] border border-[#e1e7e4] bg-[#fffefa] shadow-[0_12px_42px_rgba(28,48,56,.045)]">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#edf0ed] px-5 py-4 sm:px-6">
