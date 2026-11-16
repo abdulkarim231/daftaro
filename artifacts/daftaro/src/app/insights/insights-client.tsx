@@ -11,14 +11,18 @@ import { useAppLanguage } from "../../hooks/use-app-language";
 import { supabase } from "../../lib/supabase";
 import {
   askDaftaro,
+  clearAiChatHistory,
   getAiAnalysis,
+  getAiChatHistory,
   getAiPriceAdvice,
   localizeAiError,
+  saveAiChatHistory,
   type AiAnalysis,
   type AiChatMessage,
   type AiPeriod,
   type AiPriceResult,
 } from "../../lib/ai-api";
+import { mergeAiChatHistories, sanitizeAiChatHistory } from "../../lib/ai-chat-history";
 import { buildPrintableAiReport } from "../../lib/printable-ai-report";
 
 type ProductOption = {
@@ -45,7 +49,14 @@ const COPY = {
     simulationOnly: "هذه محاكاة فقط؛ لن يتغير السعر المحفوظ.", noProducts: "أضف منتجًا لتجربة التسعير.",
     assistant: "اسأل دفترُك", assistantHint: "اسأل عن الأرباح، المصروفات، المنتجات أو المخزون. الإجابات تعتمد على ملخص آمن لبيانات حسابك.",
     placeholder: "مثال: ما المنتجات التي تحتاج إعادة شراء؟", send: "إرسال", sending: "جارٍ الرد…",
-    noChat: "ابدأ بسؤال عن بيانات نشاطك.", clear: "مسح المحادثة", localHistory: "سجل المحادثة محفوظ على هذا الجهاز فقط.",
+    noChat: "ابدأ بسؤال عن بيانات نشاطك.", clear: "مسح المحادثة", localHistory: "يُحفظ سجل المحادثة في حسابك ويظهر على أجهزتك الأخرى.",
+    historyLoading: "جارٍ تحميل سجل محادثاتك…", historyRetry: "إعادة المحاولة",
+    historyLoadError: "تعذر تحميل سجل المحادثة من حسابك. أعد المحاولة؛ ستظل النسخة المحفوظة على هذا الجهاز متاحة.",
+    historySaveError: "تعذر مزامنة المحادثة مع حسابك. ستظل محفوظة على هذا الجهاز؛ أعد المحاولة للمزامنة.",
+    historyLocalSaveError: "تعذر حفظ نسخة احتياطية من المحادثة على هذا الجهاز.",
+    historyClearError: "تعذر حذف سجل المحادثة من حسابك. قد يظل ظاهرًا على أجهزتك الأخرى.",
+    historySetupError: "تخزين سجل المحادثة غير مفعّل. شغّل ترحيل سجل المحادثة في Supabase SQL Editor.",
+    confirmClearChat: "سيُحذف سجل المحادثة من حسابك وعلى جميع أجهزتك. هل تريد المتابعة؟",
     loadProductsError: "تعذر تحميل المنتجات.", answerError: "لم نتمكن من الإجابة من بيانات نشاطك.",
     noNarrative: "لم يُنتج النموذج شرحًا. الأرقام المعروضة محسوبة من بياناتك.",
     evidence: "الدليل", paidUnits: "وحدات مدفوعة", revenue: "الإيراد المدفوع", profit: "الربح التقديري",
@@ -72,7 +83,14 @@ const COPY = {
     simulationOnly: "This is a simulation; the saved price will not change.", noProducts: "Add a product to try pricing.",
     assistant: "Ask Daftaro", assistantHint: "Ask about profit, expenses, products, or stock. Answers use a private summary of your account data.",
     placeholder: "For example: Which products should I restock?", send: "Send", sending: "Thinking…",
-    noChat: "Ask a question about your business data.", clear: "Clear chat", localHistory: "Chat history is stored only on this device.",
+    noChat: "Ask a question about your business data.", clear: "Clear chat", localHistory: "Chat history is saved to your account and available on your other devices.",
+    historyLoading: "Loading your chat history…", historyRetry: "Retry",
+    historyLoadError: "Chat history couldn't load from your account. Retry; the copy on this device remains available.",
+    historySaveError: "Chat history couldn't sync to your account. It remains saved on this device; retry to sync it.",
+    historyLocalSaveError: "A backup copy of the chat couldn't be saved on this device.",
+    historyClearError: "Chat history couldn't be deleted from your account. It may still appear on your other devices.",
+    historySetupError: "Chat history storage is not enabled. Run the chat-history migration in the Supabase SQL Editor.",
+    confirmClearChat: "This deletes your chat history from your account and all your devices. Continue?",
     loadProductsError: "Products could not be loaded.", answerError: "We couldn't answer from your business data.",
     noNarrative: "The model didn't return an explanation. Figures shown are calculated from your data.",
     evidence: "Evidence", paidUnits: "Paid units", revenue: "Paid revenue", profit: "Estimated profit",
@@ -99,6 +117,10 @@ export default function InsightsClient() {
   const [userId, setUserId] = useState<string | null>(null);
   const [profileReady, setProfileReady] = useState(false);
   const [chatLoadedForUser, setChatLoadedForUser] = useState<string | null>(null);
+  const [chatHistoryLoading, setChatHistoryLoading] = useState(false);
+  const [chatHistoryError, setChatHistoryError] = useState("");
+  const [chatHistoryErrorAction, setChatHistoryErrorAction] = useState<"load" | "clear" | "none">("load");
+  const [chatHistoryRetry, setChatHistoryRetry] = useState(0);
   const [currency, setCurrency] = useState("KWD");
   const [period, setPeriod] = useState<AiPeriod>("30d");
   const [analysis, setAnalysis] = useState<AiAnalysis | null>(null);
@@ -115,11 +137,34 @@ export default function InsightsClient() {
   const [messageText, setMessageText] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
   const [chatError, setChatError] = useState("");
+  const lastSyncedMessages = useRef<string | null>(null);
+  const chatMutationQueue = useRef<Promise<void>>(Promise.resolve());
+  const chatSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const chatUserId = useRef<string | null>(userId);
   const rtl = language === "ar";
   const text = COPY[language];
   const productLoadErrorText = useRef(text.loadProductsError);
   productLoadErrorText.current = text.loadProductsError;
+  const chatHistoryErrorCopy = useRef({
+    load: text.historyLoadError,
+    save: text.historySaveError,
+    setup: text.historySetupError,
+    localSave: text.historyLocalSaveError,
+  });
+  chatHistoryErrorCopy.current = {
+    load: text.historyLoadError,
+    save: text.historySaveError,
+    setup: text.historySetupError,
+    localSave: text.historyLocalSaveError,
+  };
+  chatUserId.current = userId;
   const chatStorageKey = userId ? `daftaro-ai-chat:${userId}` : null;
+
+  const enqueueChatMutation = useCallback(function queueChatOperation<T>(operation: () => Promise<T>) {
+    const pending = chatMutationQueue.current.then(operation, operation);
+    chatMutationQueue.current = pending.then(() => undefined, () => undefined);
+    return pending;
+  }, []);
 
   useEffect(() => {
     document.documentElement.lang = language;
@@ -137,6 +182,8 @@ export default function InsightsClient() {
       }
       const id = data.session.user.id;
       if (!active) return;
+      chatUserId.current = id;
+      setChatHistoryLoading(true);
       setUserId(id);
       setProfileReady(false);
       const { data: profile, error: profileError } = await supabase
@@ -167,7 +214,11 @@ export default function InsightsClient() {
     void initialize();
     const { data: listener } = supabase.auth.onAuthStateChange((event) => {
       if (event === "SIGNED_OUT") {
+        chatUserId.current = null;
         setMessages([]);
+        setChatLoadedForUser(null);
+        setChatHistoryLoading(false);
+        setChatHistoryError("");
         setUserId(null);
         router.replace("/auth");
       }
@@ -179,33 +230,116 @@ export default function InsightsClient() {
   }, [router]);
 
   useEffect(() => {
-    if (!chatStorageKey) return;
-    try {
-      const saved = localStorage.getItem(chatStorageKey);
-      if (!saved) {
-        setMessages([]);
+    if (!chatStorageKey || !userId) return;
+    const storageKey = chatStorageKey;
+    let active = true;
+    setMessages([]);
+    setChatLoadedForUser(null);
+    setChatHistoryLoading(true);
+    setChatHistoryError("");
+    setChatHistoryErrorAction("load");
+    lastSyncedMessages.current = null;
+
+    async function initializeChatHistory() {
+      let localMessages: AiChatMessage[] = [];
+      try {
+        const saved = localStorage.getItem(storageKey);
+        if (saved) localMessages = sanitizeAiChatHistory(JSON.parse(saved));
+      } catch {
+        localMessages = [];
+      }
+
+      try {
+        const result = await getAiChatHistory();
+        if (!active) return;
+        const remoteMessages = sanitizeAiChatHistory(result.messages);
+        const mergedMessages = mergeAiChatHistories(remoteMessages, localMessages);
+        lastSyncedMessages.current = JSON.stringify(remoteMessages);
+        if (JSON.stringify(mergedMessages) !== JSON.stringify(remoteMessages) && mergedMessages.length > 0) {
+          try {
+            await enqueueChatMutation(() => {
+              if (chatUserId.current !== userId) return Promise.reject(new Error("Account changed"));
+              return saveAiChatHistory(mergedMessages);
+            });
+            if (!active) return;
+            lastSyncedMessages.current = JSON.stringify(mergedMessages);
+          } catch (error) {
+            if (active) {
+              const setupMissing = error instanceof Error && error.message.includes("Chat history storage is not set up");
+              setChatHistoryError(setupMissing ? chatHistoryErrorCopy.current.setup : chatHistoryErrorCopy.current.save);
+              setChatHistoryErrorAction("load");
+            }
+          }
+        }
+        if (!active) return;
+        setMessages(mergedMessages);
         setChatLoadedForUser(userId);
-        return;
+      } catch (error) {
+        if (!active) return;
+        setMessages(localMessages);
+        const setupMissing = error instanceof Error && error.message.includes("Chat history storage is not set up");
+        setChatHistoryError(setupMissing ? chatHistoryErrorCopy.current.setup : chatHistoryErrorCopy.current.load);
+        setChatHistoryErrorAction("load");
+        setChatLoadedForUser(userId);
+      } finally {
+        if (active) setChatHistoryLoading(false);
       }
-      const parsed = JSON.parse(saved);
-      if (Array.isArray(parsed)) {
-        setMessages(parsed.filter((item) => item && ["user", "assistant"].includes(item.role) && typeof item.content === "string").slice(-40));
-      }
-      setChatLoadedForUser(userId);
-    } catch {
-      setMessages([]);
-      setChatLoadedForUser(userId);
     }
-  }, [chatStorageKey]);
+
+    void initializeChatHistory();
+    return () => {
+      active = false;
+    };
+  }, [chatHistoryRetry, chatStorageKey, enqueueChatMutation, userId]);
 
   useEffect(() => {
     if (!chatStorageKey || chatLoadedForUser !== userId) return;
     try {
-      localStorage.setItem(chatStorageKey, JSON.stringify(messages.slice(-40)));
+      localStorage.setItem(chatStorageKey, JSON.stringify(sanitizeAiChatHistory(messages)));
     } catch {
-      setChatError(language === "ar" ? "تعذر حفظ المحادثة على هذا الجهاز." : "Chat history couldn't be saved on this device.");
+      setChatHistoryError(chatHistoryErrorCopy.current.localSave);
+      setChatHistoryErrorAction("none");
     }
-  }, [chatLoadedForUser, chatStorageKey, language, messages, userId]);
+  }, [chatLoadedForUser, chatStorageKey, messages, userId]);
+
+  useEffect(() => {
+    if (
+      !chatStorageKey
+      || chatLoadedForUser !== userId
+      || messages.length === 0
+    ) return;
+    const safeMessages = sanitizeAiChatHistory(messages);
+    const serialized = JSON.stringify(safeMessages);
+    if (serialized === lastSyncedMessages.current) return;
+    let active = true;
+    chatSaveTimer.current = setTimeout(() => {
+      chatSaveTimer.current = null;
+      void enqueueChatMutation(() => {
+        if (chatUserId.current !== userId) return Promise.reject(new Error("Account changed"));
+        return saveAiChatHistory(safeMessages);
+      }).then(() => {
+        if (!active || chatUserId.current !== userId) return;
+        lastSyncedMessages.current = serialized;
+        setChatHistoryError("");
+      }).catch((error: unknown) => {
+        if (!active || chatUserId.current !== userId) return;
+        const setupMissing = error instanceof Error && error.message.includes("Chat history storage is not set up");
+        setChatHistoryError(setupMissing ? chatHistoryErrorCopy.current.setup : chatHistoryErrorCopy.current.save);
+        setChatHistoryErrorAction("load");
+      });
+    }, 650);
+    return () => {
+      active = false;
+      if (chatSaveTimer.current) clearTimeout(chatSaveTimer.current);
+      chatSaveTimer.current = null;
+    };
+  }, [
+    chatLoadedForUser,
+    chatStorageKey,
+    enqueueChatMutation,
+    messages,
+    userId,
+  ]);
 
   const loadAnalysis = useCallback(async () => {
     if (!userId) return;
@@ -244,26 +378,60 @@ export default function InsightsClient() {
   async function sendMessage(event: FormEvent) {
     event.preventDefault();
     const content = messageText.trim();
-    if (!content || chatLoading) return;
-    const next = [...messages, { role: "user" as const, content }].slice(-12);
-    setMessages(next);
+    if (!userId || !content || chatLoading) return;
+    const sendingUserId = userId;
+    const nextHistory = [...messages, { role: "user" as const, content }].slice(-40);
+    setMessages(nextHistory);
     setMessageText("");
     setChatLoading(true);
     setChatError("");
     try {
-      const result = await askDaftaro(next, currency, language);
+      const result = await askDaftaro(nextHistory.slice(-12), currency, language);
+      if (chatUserId.current !== sendingUserId) return;
       setMessages((current) => [...current, { role: "assistant" as const, content: result.answer }].slice(-40));
     } catch (error) {
+      if (chatUserId.current !== sendingUserId) return;
       setChatError(error instanceof Error ? localizeAiError(error.message, language) : text.answerError);
-      setMessages(next);
+      setMessages(nextHistory);
     } finally {
-      setChatLoading(false);
+      if (chatUserId.current === sendingUserId) setChatLoading(false);
     }
   }
 
-  function clearChat() {
+  async function clearChat() {
+    if (!userId || chatHistoryLoading || chatLoading || !window.confirm(text.confirmClearChat)) return;
+    if (chatSaveTimer.current) clearTimeout(chatSaveTimer.current);
+    chatSaveTimer.current = null;
     setMessages([]);
+    setChatLoadedForUser(userId);
     setChatError("");
+    setChatHistoryError("");
+    setChatHistoryErrorAction("load");
+    lastSyncedMessages.current = JSON.stringify([]);
+    try {
+      await enqueueChatMutation(() => {
+        if (chatUserId.current !== userId) return Promise.reject(new Error("Account changed"));
+        return clearAiChatHistory();
+      });
+      if (chatUserId.current !== userId) return;
+    } catch {
+      if (chatUserId.current !== userId) return;
+      setChatHistoryError(text.historyClearError);
+      setChatHistoryErrorAction("clear");
+    }
+  }
+
+  function retryChatHistory() {
+    if (chatStorageKey) {
+      try {
+        localStorage.setItem(chatStorageKey, JSON.stringify(sanitizeAiChatHistory(messages)));
+      } catch {
+        setChatHistoryError(text.historyLocalSaveError);
+        setChatHistoryErrorAction("none");
+        return;
+      }
+    }
+    setChatHistoryRetry((value) => value + 1);
   }
 
   function changeProduct(productId: string) {
@@ -399,18 +567,20 @@ export default function InsightsClient() {
         <section className={panel} data-testid="ask-daftaro">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="flex items-start gap-3"><span className="grid size-10 place-items-center rounded-[13px] bg-[#e9f4f0] text-[#167b70]"><MessageCircle size={18} /></span><div><h2 className="text-lg font-extrabold">{text.assistant}</h2><p className={`mt-1 max-w-2xl text-xs leading-5 ${muted}`}>{text.assistantHint}</p></div></div>
-            <button type="button" onClick={clearChat} disabled={messages.length === 0 || chatLoading} className="rounded-lg border border-[#dfe5e7] px-3 py-2 text-xs font-bold disabled:opacity-50" data-testid="button-clear-ai-chat">{text.clear}</button>
+            <button type="button" onClick={() => void clearChat()} disabled={!userId || chatHistoryLoading || chatLoading} className="rounded-lg border border-[#dfe5e7] px-3 py-2 text-xs font-bold disabled:opacity-50" data-testid="button-clear-ai-chat">{text.clear}</button>
           </div>
           <div className="mt-4 max-h-[460px] min-h-28 space-y-3 overflow-y-auto rounded-[16px] bg-[#f5f7f3] p-3 sm:p-4" aria-live="polite" data-testid="ai-chat-messages">
-            {messages.length === 0 && <p className={`py-7 text-center text-sm ${muted}`}>{text.noChat}</p>}
+            {chatHistoryLoading && <div className="flex items-center justify-center gap-2 py-7 text-sm text-[#788594]" role="status"><LoaderCircle size={15} className="animate-spin" />{text.historyLoading}</div>}
+            {messages.length === 0 && !chatHistoryLoading && <p className={`py-7 text-center text-sm ${muted}`}>{text.noChat}</p>}
             {messages.map((message, index) => <div key={`${index}-${message.role}`} className={`max-w-[90%] whitespace-pre-wrap rounded-[14px] px-4 py-3 text-sm leading-7 ${message.role === "user" ? "ms-auto bg-[#101b30] text-white" : "me-auto border border-[#e2e8e3] bg-white text-[#29384b]"}`} data-testid={`ai-chat-message-${message.role}`}>{message.content}</div>)}
             {chatLoading && <div className="flex items-center gap-2 text-xs text-[#788594]" role="status"><LoaderCircle size={14} className="animate-spin" />{text.sending}</div>}
           </div>
           <p className={`mt-2 text-[10px] ${muted}`}>{text.localHistory}</p>
           {chatError && <p role="alert" className="mt-2 rounded-lg bg-[#fff1ed] px-3 py-2 text-xs text-[#a34d43]" data-testid="ai-chat-error">{chatError}</p>}
+          {chatHistoryError && <div role="alert" className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-[#fff1ed] px-3 py-2 text-xs text-[#a34d43]" data-testid="ai-chat-history-error"><span>{chatHistoryError}</span>{chatHistoryErrorAction !== "none" && <button type="button" disabled={chatLoading || chatHistoryLoading} onClick={() => chatHistoryErrorAction === "clear" ? void clearChat() : retryChatHistory()} className="inline-flex min-h-8 items-center gap-1 font-bold underline underline-offset-2 disabled:opacity-50" data-testid="button-retry-ai-chat-history"><RefreshCw size={12} />{text.historyRetry}</button>}</div>}
           <form onSubmit={(event) => void sendMessage(event)} className="mt-3 flex items-end gap-2">
-            <textarea value={messageText} onChange={(event) => setMessageText(event.target.value)} maxLength={2500} rows={2} placeholder={text.placeholder} className="min-h-12 flex-1 resize-y rounded-xl border border-[#dfe5e7] bg-white px-4 py-3 text-sm outline-none focus:border-[#168d78]" data-testid="input-ai-question" />
-            <button type="submit" disabled={chatLoading || !messageText.trim()} aria-label={text.send} className="grid size-12 shrink-0 place-items-center rounded-xl bg-[#167b70] text-white disabled:opacity-50" data-testid="button-send-ai-question">{chatLoading ? <LoaderCircle size={17} className="animate-spin" /> : <Send size={17} />}</button>
+            <textarea value={messageText} onChange={(event) => setMessageText(event.target.value)} disabled={chatHistoryLoading || !userId} maxLength={2500} rows={2} placeholder={text.placeholder} className="min-h-12 flex-1 resize-y rounded-xl border border-[#dfe5e7] bg-white px-4 py-3 text-sm outline-none focus:border-[#168d78] disabled:opacity-60" data-testid="input-ai-question" />
+            <button type="submit" disabled={chatLoading || chatHistoryLoading || !userId || !messageText.trim()} aria-label={text.send} className="grid size-12 shrink-0 place-items-center rounded-xl bg-[#167b70] text-white disabled:opacity-50" data-testid="button-send-ai-question">{chatLoading ? <LoaderCircle size={17} className="animate-spin" /> : <Send size={17} />}</button>
           </form>
         </section>
       </div>

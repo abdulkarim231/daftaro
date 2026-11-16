@@ -131,6 +131,25 @@ export function askDaftaro(messages: AiChatMessage[], currency: string, language
   });
 }
 
+export function getAiChatHistory() {
+  return authenticatedFetch<{ messages: AiChatMessage[]; updatedAt: string | null }>("/api/ai/chat-history", {
+    cache: "no-store",
+  });
+}
+
+export function saveAiChatHistory(messages: AiChatMessage[]) {
+  return authenticatedFetch<{ saved: boolean; updatedAt: string }>("/api/ai/chat-history", {
+    method: "PUT",
+    body: JSON.stringify({ messages }),
+  });
+}
+
+export function clearAiChatHistory() {
+  return authenticatedFetch<{ cleared: boolean }>("/api/ai/chat-history", {
+    method: "DELETE",
+  });
+}
+
 export function getAiPriceAdvice(productId: string, proposedPrice: string, language: AiLanguage) {
   return authenticatedFetch<AiPriceResult>("/api/ai/pricing", {
     method: "POST",

@@ -22,6 +22,7 @@ import {
   sanitizePrintableAiReportSnapshot,
   sanitizeShareNarrative,
 } from "../lib/ai-report-share";
+import { boundAiChatAnswer, normalizeAiChatHistoryMessages } from "../lib/ai-chat-history";
 import { completeWithOpenRouter, OpenRouterError } from "../lib/openrouter";
 
 const router: IRouter = Router();
@@ -106,6 +107,10 @@ function reportSharingNotReady(code?: string) {
 }
 
 function savedReportStorageNotReady(code?: string) {
+  return code === "PGRST202" || code === "42883" || code === "42P01";
+}
+
+function chatHistoryStorageNotReady(code?: string) {
   return code === "PGRST202" || code === "42883" || code === "42P01";
 }
 
@@ -348,7 +353,7 @@ router.post("/ai/chat", async (req: Request, res: Response): Promise<void> => {
       },
       ...cleanMessages.map((message) => ({ role: message.role, content: message.content })),
     ]);
-    res.json({ answer: response });
+    res.json({ answer: boundAiChatAnswer(response) });
   } catch (error) {
     if (error instanceof OpenRouterError) {
       res.status(error.status).json({ error: error.message });
@@ -356,6 +361,83 @@ router.post("/ai/chat", async (req: Request, res: Response): Promise<void> => {
     }
     req.log.error({ reason: error instanceof Error ? error.message : "unknown" }, "Daftaro AI chat failed");
     res.status(502).json({ error: "Could not answer from your business data. Try again." });
+  }
+});
+
+router.get("/ai/chat-history", async (req: Request, res: Response): Promise<void> => {
+  res.setHeader("Cache-Control", "no-store, private");
+  const auth = await authenticatedClient(req, res);
+  if (!auth) return;
+  try {
+    const { data, error } = await auth.client.rpc("get_ai_chat_history");
+    if (error) {
+      if (chatHistoryStorageNotReady(error.code)) {
+        res.status(503).json({ error: "Chat history storage is not set up. Apply the Daftaro chat-history migration." });
+        return;
+      }
+      throw error;
+    }
+    const row = Array.isArray(data) ? data[0] : data;
+    const messages = normalizeAiChatHistoryMessages(
+      row && typeof row === "object" ? (row as { messages?: unknown }).messages : [],
+      true,
+    );
+    if (!messages) {
+      res.status(502).json({ error: "The saved chat history could not be read safely." });
+      return;
+    }
+    const updatedAt = row && typeof row === "object" && typeof (row as { updated_at?: unknown }).updated_at === "string"
+      ? (row as { updated_at: string }).updated_at
+      : null;
+    res.json({ messages, updatedAt });
+  } catch (error) {
+    req.log.error({ reason: error instanceof Error ? error.message : "unknown" }, "Daftaro chat history load failed");
+    res.status(502).json({ error: "Could not load your chat history. Try again." });
+  }
+});
+
+router.put("/ai/chat-history", async (req: Request, res: Response): Promise<void> => {
+  res.setHeader("Cache-Control", "no-store, private");
+  const auth = await authenticatedClient(req, res);
+  if (!auth) return;
+  const messages = normalizeAiChatHistoryMessages(req.body?.messages);
+  if (!messages) {
+    res.status(400).json({ error: "Send a valid chat history." });
+    return;
+  }
+  try {
+    const { data, error } = await auth.client.rpc("save_ai_chat_history", { p_messages: messages });
+    if (error) {
+      if (chatHistoryStorageNotReady(error.code)) {
+        res.status(503).json({ error: "Chat history storage is not set up. Apply the Daftaro chat-history migration." });
+        return;
+      }
+      throw error;
+    }
+    res.json({ saved: true, updatedAt: data });
+  } catch (error) {
+    req.log.error({ reason: error instanceof Error ? error.message : "unknown" }, "Daftaro chat history save failed");
+    res.status(502).json({ error: "Could not save your chat history. Try again." });
+  }
+});
+
+router.delete("/ai/chat-history", async (req: Request, res: Response): Promise<void> => {
+  res.setHeader("Cache-Control", "no-store, private");
+  const auth = await authenticatedClient(req, res);
+  if (!auth) return;
+  try {
+    const { error } = await auth.client.rpc("clear_ai_chat_history");
+    if (error) {
+      if (chatHistoryStorageNotReady(error.code)) {
+        res.status(503).json({ error: "Chat history storage is not set up. Apply the Daftaro chat-history migration." });
+        return;
+      }
+      throw error;
+    }
+    res.json({ cleared: true });
+  } catch (error) {
+    req.log.error({ reason: error instanceof Error ? error.message : "unknown" }, "Daftaro chat history clear failed");
+    res.status(502).json({ error: "Could not clear your chat history. Try again." });
   }
 });
 
