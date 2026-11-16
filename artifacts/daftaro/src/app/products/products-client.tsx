@@ -24,6 +24,8 @@ import {
   normalizeMoneyInput,
   parseAmountToMilli,
 } from "../../lib/money";
+import { isAppNavActive } from "../../lib/navigation";
+import { useHydratedPathname } from "../../lib/use-hydrated-pathname";
 
 type Language = "ar" | "en";
 type Product = {
@@ -119,6 +121,7 @@ const controlClass =
 
 export default function ProductsClient() {
   const router = useRouter();
+  const pathname = useHydratedPathname();
   const [language, setLanguage] = useState<Language>("ar");
   const [userId, setUserId] = useState<string | null>(null);
   const [currency, setCurrency] = useState("KWD");
@@ -136,6 +139,12 @@ export default function ProductsClient() {
   const [draft, setDraft] = useState<ProductDraft>(emptyDraft);
   const rtl = language === "ar";
   const text = copy[language];
+  const navLinkClass = (href: string) =>
+    `outline-ring rounded-full border px-3.5 py-2 text-xs font-bold transition hover:border-[#d6b878] ${
+      isAppNavActive(pathname, href)
+        ? "border-[#167b70] bg-[#e8f3f0] text-[#12665e] ring-1 ring-[#167b70]/15"
+        : "border-[#dfe5e7] bg-white text-[#526174]"
+    }`;
 
   useEffect(() => {
     document.documentElement.lang = language;
@@ -345,7 +354,7 @@ export default function ProductsClient() {
 
   return (
     <main dir={rtl ? "rtl" : "ltr"} className="min-h-[100dvh] bg-[#f4f6f4] text-[#172639]">
-      <header className="border-b border-[#e4e8e5] bg-[#f8f9f6]">
+      <header className="sticky top-0 z-40 border-b border-[#e4e8e5] bg-[#f8f9f6]/95 shadow-sm backdrop-blur">
         <div className="mx-auto flex min-h-[74px] max-w-[1240px] items-center justify-between gap-4 px-4 sm:px-7">
           <div className="flex items-center gap-3">
             <span className="relative grid size-10 place-items-center rounded-[13px] bg-[#101b30]">
@@ -355,19 +364,20 @@ export default function ProductsClient() {
             <span className="text-[19px] font-extrabold tracking-[-.045em] text-[#101b30]">{text.brand}</span>
           </div>
           <div className="flex flex-wrap items-center justify-end gap-2">
-            <Link href="/dashboard" aria-label={text.dashboard} className="outline-ring hidden rounded-full border border-[#dfe5e7] bg-white px-3.5 py-2 text-xs font-bold text-[#526174] transition hover:border-[#d6b878] sm:inline-flex" data-testid="link-dashboard">
+            <Link href="/dashboard" aria-current={isAppNavActive(pathname, "/dashboard") ? "page" : undefined} aria-label={text.dashboard} className={`hidden sm:inline-flex ${navLinkClass("/dashboard")}`} data-testid="link-dashboard">
               {text.dashboard}
             </Link>
-            <Link href="/transactions" aria-label={text.ledger} className="outline-ring inline-flex items-center gap-1.5 rounded-full border border-[#dfe5e7] bg-white px-3 py-2 text-xs font-bold text-[#526174] transition hover:border-[#d6b878]" data-testid="link-transactions">
+            <Link href="/transactions" aria-current={isAppNavActive(pathname, "/transactions") ? "page" : undefined} aria-label={text.ledger} className={`inline-flex items-center gap-1.5 ${navLinkClass("/transactions")}`} data-testid="link-transactions">
               <ReceiptText size={14} /><span className="hidden sm:inline">{text.ledger}</span>
             </Link>
-            <Link href="/auth/complete" className="outline-ring hidden rounded-full border border-[#dfe5e7] bg-white px-3.5 py-2 text-xs font-bold text-[#526174] transition hover:border-[#d6b878] sm:inline-flex" data-testid="link-business-profile">
+            <Link href="/products" aria-current={isAppNavActive(pathname, "/products") ? "page" : undefined} aria-label={text.products} className={navLinkClass("/products")} data-testid="link-products">{text.products}</Link>
+            <Link href="/auth/complete" aria-current={isAppNavActive(pathname, "/auth/complete") ? "page" : undefined} className={`hidden sm:inline-flex ${navLinkClass("/auth/complete")}`} data-testid="link-business-profile">
               {text.profile}
             </Link>
-            <Link href="/orders" aria-label={text.orders} className="outline-ring rounded-full border border-[#dfe5e7] bg-white px-3 py-2 text-xs font-bold text-[#526174] transition hover:border-[#d6b878]" data-testid="link-orders">
+            <Link href="/orders" aria-current={isAppNavActive(pathname, "/orders") ? "page" : undefined} aria-label={text.orders} className={navLinkClass("/orders")} data-testid="link-orders">
               {text.orders}
             </Link>
-            <Link href="/customers" aria-label={text.customers} className="outline-ring rounded-full border border-[#dfe5e7] bg-white px-3 py-2 text-xs font-bold text-[#526174] transition hover:border-[#d6b878]" data-testid="link-customers">
+            <Link href="/customers" aria-current={isAppNavActive(pathname, "/customers") ? "page" : undefined} aria-label={text.customers} className={navLinkClass("/customers")} data-testid="link-customers">
               {text.customers}
             </Link>
             <button type="button" onClick={() => setLanguage(rtl ? "en" : "ar")} className="outline-ring rounded-full border border-[#dfe5e7] bg-white px-3.5 py-2 text-xs font-bold text-[#526174] transition hover:border-[#d6b878]" aria-label={rtl ? "Switch to English" : "التبديل إلى العربية"} data-testid="button-language">

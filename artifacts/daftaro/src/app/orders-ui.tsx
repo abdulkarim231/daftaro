@@ -17,6 +17,8 @@ import {
 import {
   formatMilliAmount, milliToDatabaseValue, normalizeMoneyInput, parseAmountToMilli,
 } from "../lib/money";
+import { isAppNavActive } from "../lib/navigation";
+import { useHydratedPathname } from "../lib/use-hydrated-pathname";
 
 type Lang = "ar" | "en";
 type Screen = "customers" | "orders" | "create-order" | "order-details" | "invoice";
@@ -130,6 +132,7 @@ function labelFor(value: string, lang: Lang) {
 
 export default function OrdersUI({ screen }: { screen: Screen }) {
   const router = useRouter();
+  const pathname = useHydratedPathname();
   const [lang, setLang] = useState<Lang>("ar");
   const [params, setParams] = useState<{ id: string; token: string }>({ id: "", token: "" });
   const [loading, setLoading] = useState(true);
@@ -158,6 +161,12 @@ export default function OrdersUI({ screen }: { screen: Screen }) {
   const [statusDraft, setStatusDraft] = useState<{ order_status: OrderStatus; payment_status: PaymentStatus }>({ order_status: "New", payment_status: "Unpaid" });
   const t = C[lang];
   const rtl = lang === "ar";
+  const navLinkClass = (href: string) =>
+    `rounded-full border px-3 py-2 text-xs font-bold transition hover:border-[#d6b878] ${
+      isAppNavActive(pathname, href)
+        ? "border-[#167b70] bg-[#e8f3f0] text-[#12665e] ring-1 ring-[#167b70]/15"
+        : "border-[#dfe5e7] bg-white text-[#526174]"
+    }`;
 
   useEffect(() => {
     document.documentElement.lang = lang;
@@ -335,18 +344,18 @@ export default function OrdersUI({ screen }: { screen: Screen }) {
   const control = "w-full rounded-[13px] border border-[#dfe5e8] bg-[#fffefa] px-3.5 py-3 text-sm text-[#1d2c3d] outline-none transition placeholder:text-[#a3acb5] focus:border-[#168d78] focus:ring-4 focus:ring-[#168d78]/10";
   const panel = "rounded-[22px] border border-[#e1e7e4] bg-[#fffefa] shadow-[0_12px_42px_rgba(28,48,56,.045)]";
   const header = (
-    <header className="border-b border-[#e3e8e5] bg-[#f8f9f6]">
+    <header className="sticky top-0 z-40 border-b border-[#e3e8e5] bg-[#f8f9f6]/95 shadow-sm backdrop-blur">
       <div className="mx-auto flex min-h-[72px] max-w-[1240px] flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-7">
         <Link href="/orders" aria-label={t.brand} className="flex items-center gap-3" data-testid="link-daftaro-brand">
           <span className="relative grid size-10 place-items-center rounded-[13px] bg-[#101b30]"><span className="absolute inset-[5px] rounded-[9px] border border-[#d6b878]/70" /><span className="relative text-xl font-semibold text-[#d6b878]">د</span></span>
           <span className="text-[19px] font-extrabold tracking-[-.045em] text-[#101b30]">{t.brand}</span>
         </Link>
         <nav className="flex flex-wrap items-center gap-2" aria-label={rtl ? "التنقل" : "Navigation"}>
-          <Link href="/dashboard" className="rounded-full border border-[#dfe5e7] bg-white px-3 py-2 text-xs font-bold text-[#526174] transition hover:border-[#d6b878]" data-testid="link-dashboard">{t.dashboard}</Link>
-          <Link href="/transactions" className="rounded-full border border-[#dfe5e7] bg-white px-3 py-2 text-xs font-bold text-[#526174] transition hover:border-[#d6b878]" data-testid="link-transactions">{t.transactions}</Link>
-          <Link href="/products" className="rounded-full border border-[#dfe5e7] bg-white px-3 py-2 text-xs font-bold text-[#526174] transition hover:border-[#d6b878]" data-testid="link-products">{t.products}</Link>
-          <Link href="/customers" className="rounded-full border border-[#dfe5e7] bg-white px-3.5 py-2 text-xs font-bold text-[#526174] transition hover:border-[#d6b878]" data-testid="link-customers">{t.customers}</Link>
-          <Link href="/orders" className="rounded-full border border-[#dfe5e7] bg-white px-3.5 py-2 text-xs font-bold text-[#526174] transition hover:border-[#d6b878]" data-testid="link-orders">{t.orders}</Link>
+          <Link href="/dashboard" aria-current={isAppNavActive(pathname, "/dashboard") ? "page" : undefined} className={navLinkClass("/dashboard")} data-testid="link-dashboard">{t.dashboard}</Link>
+          <Link href="/transactions" aria-current={isAppNavActive(pathname, "/transactions") ? "page" : undefined} className={navLinkClass("/transactions")} data-testid="link-transactions">{t.transactions}</Link>
+          <Link href="/products" aria-current={isAppNavActive(pathname, "/products") ? "page" : undefined} className={navLinkClass("/products")} data-testid="link-products">{t.products}</Link>
+          <Link href="/customers" aria-current={isAppNavActive(pathname, "/customers") ? "page" : undefined} className={navLinkClass("/customers")} data-testid="link-customers">{t.customers}</Link>
+          <Link href="/orders" aria-current={isAppNavActive(pathname, "/orders") ? "page" : undefined} className={navLinkClass("/orders")} data-testid="link-orders">{t.orders}</Link>
           <button type="button" onClick={() => setLang(rtl ? "en" : "ar")} aria-label={rtl ? "Switch to English" : "التبديل إلى العربية"} className="rounded-full border border-[#dfe5e7] bg-white px-3.5 py-2 text-xs font-bold text-[#526174] transition hover:border-[#d6b878]" data-testid="button-language">{t.language}</button>
         </nav>
       </div>
@@ -459,7 +468,7 @@ function InvoiceScreen({ lang, setLang, loading, error, data, isPublic, invoiceT
   if (!data) return <main dir={rtl?"rtl":"ltr"} className="grid min-h-[100dvh] place-items-center bg-[#f4f6f4] p-5"><div className="max-w-md rounded-[22px] border border-[#e1e7e4] bg-[#fffefa] p-8 text-center" data-testid="state-invoice-not-found"><FileText className="mx-auto mb-4 text-[#9a8050]"/><h1 className="text-xl font-extrabold">{t.publicMissing}</h1><Link href={isPublic?"/":"/orders"} className="mt-5 inline-flex rounded-xl border border-[#dfe5e7] px-4 py-2.5 text-sm font-bold text-[#526174]" data-testid="link-invoice-back">{isPublic?t.back:t.toOrders}</Link></div></main>;
   const shareText = `${t.invoiceTitle} ${data.invoice.invoice_number} — ${shareUrl}`;
   return <main dir={rtl?"rtl":"ltr"} className="min-h-[100dvh] bg-[#f4f6f4] text-[#172639]">
-    <header className="print:hidden border-b border-[#e3e8e5] bg-[#f8f9f6]"><div className="mx-auto flex min-h-[68px] max-w-[960px] items-center justify-between gap-3 px-4 sm:px-7"><Link href={isPublic?"/":"/orders"} className="flex items-center gap-2.5" aria-label={t.brand} data-testid="link-invoice-brand"><span className="grid size-9 place-items-center rounded-xl bg-[#101b30] text-lg font-bold text-[#d6b878]">د</span><span className="font-extrabold text-[#101b30]">{t.brand}</span></Link><div className="flex gap-2">{!isPublic && <><button type="button" onClick={()=>window.open(`https://wa.me/?text=${encodeURIComponent(shareText)}`,"_blank","noopener,noreferrer")} aria-label={t.whatsapp} className={control} data-testid="button-invoice-whatsapp">{t.whatsapp}</button><button type="button" onClick={()=>void copyLink()} aria-label={t.copy} className={control} data-testid="button-copy-invoice-link"><Clipboard size={15}/><span className="ms-1.5">{copied?t.copied:t.copy}</span></button><button type="button" onClick={()=>window.print()} aria-label={t.print} className={control} data-testid="button-print-invoice"><Printer size={15}/><span className="ms-1.5 hidden sm:inline">{t.print}</span></button></>}<button type="button" onClick={()=>setLang(rtl?"en":"ar")} aria-label={rtl?"Switch to English":"التبديل إلى العربية"} className={control} data-testid="button-invoice-language">{t.language}</button></div></div></header>
+    <header className="print:hidden sticky top-0 z-40 border-b border-[#e3e8e5] bg-[#f8f9f6]/95 shadow-sm backdrop-blur"><div className="mx-auto flex min-h-[68px] max-w-[960px] items-center justify-between gap-3 px-4 sm:px-7"><Link href={isPublic?"/":"/orders"} className="flex items-center gap-2.5" aria-label={t.brand} data-testid="link-invoice-brand"><span className="grid size-9 place-items-center rounded-xl bg-[#101b30] text-lg font-bold text-[#d6b878]">د</span><span className="font-extrabold text-[#101b30]">{t.brand}</span></Link><div className="flex gap-2">{!isPublic && <><button type="button" onClick={()=>window.open(`https://wa.me/?text=${encodeURIComponent(shareText)}`,"_blank","noopener,noreferrer")} aria-label={t.whatsapp} className={control} data-testid="button-invoice-whatsapp">{t.whatsapp}</button><button type="button" onClick={()=>void copyLink()} aria-label={t.copy} className={control} data-testid="button-copy-invoice-link"><Clipboard size={15}/><span className="ms-1.5">{copied?t.copied:t.copy}</span></button><button type="button" onClick={()=>window.print()} aria-label={t.print} className={control} data-testid="button-print-invoice"><Printer size={15}/><span className="ms-1.5 hidden sm:inline">{t.print}</span></button></>}<button type="button" onClick={()=>setLang(rtl?"en":"ar")} aria-label={rtl?"Switch to English":"التبديل إلى العربية"} className={control} data-testid="button-invoice-language">{t.language}</button></div></div></header>
     <div className="mx-auto max-w-[960px] px-4 py-6 sm:px-7 sm:py-10">
       <div className="mb-5 flex items-center justify-between"><p className="text-[10px] font-extrabold tracking-[.17em] text-[#927a46]">{isPublic?t.publicInvoice:t.ownerInvoice}</p>{!isPublic && <Link href="/orders" className="text-xs font-bold text-[#647184] hover:text-[#167b70]" data-testid="link-invoice-back-orders">{t.toOrders}</Link>}</div>
       <article className="overflow-hidden rounded-[22px] border border-[#e1e7e4] bg-[#fffefa] shadow-[0_16px_50px_rgba(28,48,56,.06)] print:rounded-none print:border-0 print:shadow-none" data-testid="invoice-document">

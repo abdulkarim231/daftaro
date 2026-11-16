@@ -45,6 +45,8 @@ import {
   type DashboardTransaction,
 } from "../../lib/dashboard-data";
 import { formatMarginHundredths, formatMilliAmount, milliToDatabaseValue, parseAmountToMilli } from "../../lib/money";
+import { isAppNavActive } from "../../lib/navigation";
+import { useHydratedPathname } from "../../lib/use-hydrated-pathname";
 import { supabase } from "../../lib/supabase";
 
 type Language = "ar" | "en";
@@ -148,6 +150,7 @@ function StatCard({
 
 export default function DashboardClient() {
   const router = useRouter();
+  const pathname = useHydratedPathname();
   const [language, setLanguage] = useState<Language>("ar");
   const [isDark, setIsDark] = useState(false);
   const [period, setPeriod] = useState<DashboardPeriodPreset | "custom">("30d");
@@ -172,6 +175,14 @@ export default function DashboardClient() {
   const loadedUserId = useRef<string | null>(null);
   const rtl = language === "ar";
   const text = COPY[language];
+  const navLinkClass = (href: string) => {
+    const active = isAppNavActive(pathname, href);
+    const base = "rounded-full border px-3 py-2 text-xs font-bold transition hover:border-[#d6b878]";
+    if (active) {
+      return `${base} ${isDark ? "border-[#d6b878] bg-[#d6b878]/15 text-[#f0d99d] ring-1 ring-[#d6b878]/30" : "border-[#167b70] bg-[#e8f3f0] text-[#12665e] ring-1 ring-[#167b70]/15"}`;
+    }
+    return `${base} ${isDark ? "border-white/15 bg-white/5 text-[#d9dfeb]" : "border-[#dfe5e7] bg-white text-[#526174]"}`;
+  };
   const theme = isDark
     ? { page: "bg-[#101a2c] text-[#f2efe7]", panel: "border-white/10 bg-[#17243a]", muted: "text-[#aab5c5]", line: "#314158", tick: "#aab5c5" }
     : { page: "bg-[#f3f5f1] text-[#172639]", panel: "border-[#e3e8e5] bg-[#fffefa]", muted: "text-[#718092]", line: "#e5e9e5", tick: "#778391" };
@@ -401,9 +412,9 @@ export default function DashboardClient() {
 
   return (
     <main dir={rtl ? "rtl" : "ltr"} className={`min-h-[100dvh] transition-colors ${theme.page}`} data-testid="dashboard-page">
-      <header className={`border-b ${isDark ? "border-white/10 bg-[#121e31]" : "border-[#e3e8e5] bg-[#f8f9f6]"}`}>
+      <header className={`sticky top-0 z-40 border-b shadow-sm backdrop-blur ${isDark ? "border-white/10 bg-[#121e31]/95" : "border-[#e3e8e5] bg-[#f8f9f6]/95"}`}>
         <div className="mx-auto flex min-h-[72px] max-w-[1320px] flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-7">
-          <div className="flex items-center gap-3">
+          <Link href="/dashboard" aria-label={text.title} aria-current={isAppNavActive(pathname, "/dashboard") ? "page" : undefined} className={`flex items-center gap-3 rounded-xl transition ${isAppNavActive(pathname, "/dashboard") ? (isDark ? "ring-1 ring-[#d6b878]/50" : "ring-1 ring-[#167b70]/25") : "hover:opacity-80"}`} data-testid="link-dashboard-brand">
             <span className="relative grid size-10 place-items-center rounded-[13px] bg-[#101b30]">
               <span className="absolute inset-[5px] rounded-[9px] border border-[#d6b878]/70" />
               <span className="relative text-xl font-semibold text-[#d6b878]">د</span>
@@ -412,13 +423,13 @@ export default function DashboardClient() {
               <span className={`text-lg font-extrabold tracking-[-.045em] ${isDark ? "text-[#f4f0e7]" : "text-[#101b30]"}`}>{text.brand}</span>
               <span className="ms-3 hidden items-center gap-1.5 text-[11px] font-semibold text-[#778596] sm:inline-flex"><ShieldCheck size={13} className="text-[#168d78]" />{text.privacy}</span>
             </div>
-          </div>
+          </Link>
           <nav className="print:hidden flex flex-wrap items-center gap-2" aria-label={rtl ? "التنقل" : "Navigation"}>
-            <Link href="/transactions" className={`rounded-full border px-3 py-2 text-xs font-bold transition hover:border-[#d6b878] ${isDark ? "border-white/15 bg-white/5 text-[#d9dfeb]" : "border-[#dfe5e7] bg-white text-[#526174]"}`} data-testid="link-transactions">{text.transactions}</Link>
-            <Link href="/products" className={`hidden rounded-full border px-3.5 py-2 text-xs font-bold transition hover:border-[#d6b878] sm:inline-flex ${isDark ? "border-white/15 bg-white/5 text-[#d9dfeb]" : "border-[#dfe5e7] bg-white text-[#526174]"}`} data-testid="link-products">{text.products}</Link>
-            <Link href="/orders" className={`rounded-full border px-3 py-2 text-xs font-bold transition hover:border-[#d6b878] ${isDark ? "border-white/15 bg-white/5 text-[#d9dfeb]" : "border-[#dfe5e7] bg-white text-[#526174]"}`} data-testid="link-orders">{text.orders}</Link>
-            <Link href="/customers" className={`rounded-full border px-3 py-2 text-xs font-bold transition hover:border-[#d6b878] ${isDark ? "border-white/15 bg-white/5 text-[#d9dfeb]" : "border-[#dfe5e7] bg-white text-[#526174]"}`} data-testid="link-customers">{text.customers}</Link>
-            <Link href="/auth/complete" className={`hidden rounded-full border px-3.5 py-2 text-xs font-bold transition hover:border-[#d6b878] md:inline-flex ${isDark ? "border-white/15 bg-white/5 text-[#d9dfeb]" : "border-[#dfe5e7] bg-white text-[#526174]"}`} data-testid="link-business-profile">{text.profile}</Link>
+            <Link href="/transactions" aria-current={isAppNavActive(pathname, "/transactions") ? "page" : undefined} className={navLinkClass("/transactions")} data-testid="link-transactions">{text.transactions}</Link>
+            <Link href="/products" aria-current={isAppNavActive(pathname, "/products") ? "page" : undefined} className={`hidden sm:inline-flex ${navLinkClass("/products")}`} data-testid="link-products">{text.products}</Link>
+            <Link href="/orders" aria-current={isAppNavActive(pathname, "/orders") ? "page" : undefined} className={navLinkClass("/orders")} data-testid="link-orders">{text.orders}</Link>
+            <Link href="/customers" aria-current={isAppNavActive(pathname, "/customers") ? "page" : undefined} className={navLinkClass("/customers")} data-testid="link-customers">{text.customers}</Link>
+            <Link href="/auth/complete" aria-current={isAppNavActive(pathname, "/auth/complete") ? "page" : undefined} className={`hidden md:inline-flex ${navLinkClass("/auth/complete")}`} data-testid="link-business-profile">{text.profile}</Link>
             <button type="button" onClick={() => setLanguage(rtl ? "en" : "ar")} className={`rounded-full border px-3.5 py-2 text-xs font-bold transition ${isDark ? "border-white/15 bg-white/5 text-[#d9dfeb]" : "border-[#dfe5e7] bg-white text-[#526174]"}`} aria-label={rtl ? "Switch to English" : "التبديل إلى العربية"} data-testid="button-language">{text.language}</button>
             <button type="button" onClick={() => void signOut()} disabled={signingOut} aria-label={signingOut ? text.signingOut : text.signOut} className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-2 text-xs font-bold transition disabled:opacity-60 ${isDark ? "border-white/15 bg-white/5 text-[#d9dfeb]" : "border-[#dfe5e7] bg-white text-[#526174]"}`} data-testid="button-sign-out"><LogOut size={14} /><span className="hidden sm:inline">{signingOut ? text.signingOut : text.signOut}</span></button>
           </nav>
