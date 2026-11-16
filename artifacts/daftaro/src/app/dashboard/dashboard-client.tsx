@@ -16,6 +16,7 @@ import {
   Printer,
   RefreshCw,
   ShieldCheck,
+  Sparkles,
   Sun,
 } from "lucide-react";
 import {
@@ -45,6 +46,7 @@ import {
 } from "../../lib/dashboard-data";
 import { formatMarginHundredths, formatMilliAmount, milliToDatabaseValue, parseAmountToMilli } from "../../lib/money";
 import { AppHeader } from "../../components/app-header";
+import { AiOverviewCard } from "../../components/ai-overview-card";
 import { useAppLanguage } from "../../hooks/use-app-language";
 import { supabase } from "../../lib/supabase";
 
@@ -488,6 +490,8 @@ export default function DashboardClient() {
                 ? <section key={metric.title} className={`animate-pulse rounded-[20px] border p-5 sm:p-6 ${theme.panel}`} data-testid={`metric-skeleton-${index}`}><div className={`mb-7 h-3 w-24 rounded ${isDark ? "bg-white/10" : "bg-[#e6eae6]"}`} /><div className={`h-8 w-36 rounded ${isDark ? "bg-white/10" : "bg-[#e6eae6]"}`} /><div className={`mt-4 h-3 w-28 rounded ${isDark ? "bg-white/10" : "bg-[#e6eae6]"}`} /></section>
                 : <StatCard key={metric.id} id={metric.id} title={metric.title} value={metric.value} change={metric.change} currency={metric.id === "profit-margin" ? "" : currency} isDark={isDark} accent={metric.accent} />)}
             </div>
+
+            <AiOverviewCard language={language} currency={currency} dateRange={dateRange} isDark={isDark} />
 
             <div className="mb-5 grid grid-cols-1 gap-5 xl:grid-cols-[1.55fr_1fr]">
               <section className={`overflow-hidden rounded-[22px] border ${theme.panel}`} data-testid="trend-chart-card">

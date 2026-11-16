@@ -24,6 +24,7 @@ const labels = {
     orders: "الطلبات",
     customers: "العملاء",
     profile: "ملف النشاط",
+    insights: "الرؤى الذكية",
     language: "EN",
     signOut: "تسجيل الخروج",
     signingOut: "جارٍ الخروج…",
@@ -38,6 +39,7 @@ const labels = {
     orders: "Orders",
     customers: "Customers",
     profile: "Business profile",
+    insights: "AI insights",
     language: "العربية",
     signOut: "Sign out",
     signingOut: "Signing out…",
@@ -116,6 +118,7 @@ export function AppHeader({
             <Link href="/products" aria-current={isAppNavActive(pathname, "/products") ? "page" : undefined} className={linkClass("/products")} data-testid="link-products">{text.products}</Link>
             <Link href="/orders" aria-current={isAppNavActive(pathname, "/orders") ? "page" : undefined} className={linkClass("/orders")} data-testid="link-orders">{text.orders}</Link>
             <Link href="/customers" aria-current={isAppNavActive(pathname, "/customers") ? "page" : undefined} className={linkClass("/customers")} data-testid="link-customers">{text.customers}</Link>
+            <Link href="/insights" aria-current={isAppNavActive(pathname, "/insights") ? "page" : undefined} className={linkClass("/insights")} data-testid="link-ai-insights">{text.insights}</Link>
             <Link href="/auth/complete" aria-current={isAppNavActive(pathname, "/auth/complete") ? "page" : undefined} className={linkClass("/auth/complete")} data-testid="link-business-profile">{text.profile}</Link>
           </nav>
           <button

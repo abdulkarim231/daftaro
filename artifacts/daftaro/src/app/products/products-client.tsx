@@ -10,6 +10,7 @@ import {
   Pencil,
   Plus,
   ShieldCheck,
+  Sparkles,
   Trash2,
   X,
 } from "lucide-react";
@@ -98,6 +99,7 @@ const copy = {
     close: "إغلاق", profile: "ملف النشاط", ledger: "سجل الحركات", dashboard: "لوحة التحكم", orders: "الطلبات", customers: "العملاء", signOut: "تسجيل الخروج",
     signingOut: "جارٍ تسجيل الخروج…", signOutError: "تعذر تسجيل الخروج. أعد المحاولة.",
     positive: "ربح", negative: "خسارة", language: "EN", noProducts: "لا توجد منتجات بعد",
+    aiAdvisor: "تحليل المنتجات والتسعير",
     direction: "rtl",
   },
   en: {
@@ -135,6 +137,7 @@ const copy = {
     close: "Close", profile: "Business profile", ledger: "Transactions", dashboard: "Dashboard", orders: "Orders", customers: "Customers", signOut: "Sign out",
     signingOut: "Signing out…", signOutError: "We couldn't sign you out. Please try again.",
     positive: "Profit", negative: "Loss", language: "عربي", noProducts: "No products yet",
+    aiAdvisor: "AI product and pricing insights",
     direction: "ltr",
   },
 } as const;
@@ -400,9 +403,14 @@ export default function ProductsClient() {
             <h1 className="text-[clamp(2rem,4vw,3rem)] font-extrabold leading-tight tracking-[-.055em] text-[#101b30]">{text.title}</h1>
             <p className="mt-2 max-w-2xl text-[13px] leading-6 text-[#738092]">{text.subtitle}</p>
           </div>
-          <button type="button" onClick={openCreate} className="outline-ring inline-flex min-h-12 items-center justify-center gap-2.5 rounded-[14px] bg-[#101b30] px-5 text-sm font-bold text-white shadow-[0_8px_18px_rgba(16,27,48,.12)] transition hover:bg-[#1b2c49]" data-testid="button-add-product">
-            <Plus size={17} />{text.add}
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <Link href="/insights#pricing" className="outline-ring inline-flex min-h-12 items-center justify-center gap-2 rounded-[14px] border border-[#dfe5e7] bg-white px-4 text-xs font-bold text-[#167b70] transition hover:border-[#167b70]" data-testid="link-ai-product-insights">
+              <Sparkles size={15} />{text.aiAdvisor}
+            </Link>
+            <button type="button" onClick={openCreate} className="outline-ring inline-flex min-h-12 items-center justify-center gap-2.5 rounded-[14px] bg-[#101b30] px-5 text-sm font-bold text-white shadow-[0_8px_18px_rgba(16,27,48,.12)] transition hover:bg-[#1b2c49]" data-testid="button-add-product">
+              <Plus size={17} />{text.add}
+            </button>
+          </div>
         </div>
 
         {notice && (
