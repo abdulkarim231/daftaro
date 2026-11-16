@@ -22,6 +22,10 @@ import { AppHeader } from "../components/app-header";
 import { useAppLanguage } from "../hooks/use-app-language";
 import { supabase } from "../lib/supabase";
 import { canPayPublicInvoice } from "../lib/payment-links";
+import {
+  availableQuantityForOrder,
+  findStockShortages,
+} from "../lib/inventory";
 
 type Lang = "ar" | "en";
 type Screen = "customers" | "orders" | "create-order" | "order-details" | "invoice";
@@ -45,6 +49,8 @@ const C = {
     retry: "إعادة المحاولة", saveError: "تعذر الحفظ. يرجى المحاولة مرة أخرى.", loading: "جارٍ تحميل البيانات…",
     order: "الطلب", createTitle: "طلب جديد", editTitle: "تعديل الطلب", chooseCustomer: "اختر العميل",
     products: "المنتجات", quantity: "الكمية", addProduct: "إضافة منتج", noProducts: "لا توجد منتجات قابلة للطلب بهذه العملة.",
+    available: "المتاح", requested: "المطلوب",
+    stockValidation: "الكمية المطلوبة تتجاوز المتاح لبعض المنتجات. عدّل الكمية أو المخزون قبل حفظ الطلب.",
     discount: "الخصم", shipping: "رسوم التوصيل", orderDate: "تاريخ الطلب", create: "حفظ الطلب",
     subtotal: "المجموع الفرعي", total: "الإجمالي", item: "المنتج", unitPrice: "سعر الوحدة",
     chooseProduct: "اختر منتجًا", validationOrder: "اختر عميلًا وأكمل المنتجات بكميات من ١ إلى ٩٩، دون تكرار المنتج.",
@@ -94,6 +100,8 @@ const C = {
     retry: "Try again", saveError: "We couldn't save this. Please try again.", loading: "Loading your data…",
     order: "Order", createTitle: "New order", editTitle: "Edit order", chooseCustomer: "Choose a customer",
     products: "Products", quantity: "Quantity", addProduct: "Add product", noProducts: "No orderable products in this currency.",
+    available: "Available", requested: "Requested",
+    stockValidation: "The requested quantity exceeds available stock for one or more products. Adjust the quantity or stock before saving.",
     discount: "Discount", shipping: "Shipping fee", orderDate: "Order date", create: "Save order",
     subtotal: "Subtotal", total: "Total", item: "Product", unitPrice: "Unit price",
     chooseProduct: "Choose a product", validationOrder: "Choose a customer and complete each product with a quantity from 1 to 99. Products cannot repeat.",
@@ -306,9 +314,14 @@ export default function OrdersUI({ screen }: { screen: Screen }) {
       total: validAdjustments && discount !== null && shipping !== null
         ? subtotal - discount + shipping
         : null,
+      stockShortages: findStockShortages(
+        orderDraft.items,
+        products,
+        details?.items ?? [],
+      ),
       valid: validItems && validAdjustments,
     };
-  }, [orderDraft, products]);
+  }, [orderDraft, products, details]);
 
   function openCustomer(customer?: Customer) {
     setEditingCustomer(customer ?? null);
@@ -348,6 +361,10 @@ export default function OrdersUI({ screen }: { screen: Screen }) {
       || items.some((item) => !item.product_id || !Number.isInteger(item.quantity) || item.quantity < 1 || item.quantity > 99)
       || new Set(productIds).size !== productIds.length
     ) { setFormError(t.validationOrder); return; }
+    if (orderPreview.stockShortages.length > 0) {
+      setFormError(t.stockValidation);
+      return;
+    }
     const discount = parseAmountToMilli(normalizeMoneyInput(orderDraft.discount.trim() || "0"));
     const shipping = parseAmountToMilli(normalizeMoneyInput(orderDraft.shipping_fee.trim() || "0"));
     if (!orderPreview.valid || discount === null || shipping === null) { setFormError(t.validationMoney); return; }
@@ -481,12 +498,31 @@ export default function OrdersUI({ screen }: { screen: Screen }) {
   </>);
 
   if (screen === "create-order") return shell(<>
+    {orderPreview.stockShortages.length > 0 && (
+      <div
+        role="alert"
+        className="mb-5 rounded-xl border border-[#e8c5bd] bg-[#fff4f1] px-4 py-3 text-sm text-[#a34d43]"
+        data-testid="alert-insufficient-order-stock"
+      >
+        <p className="font-bold">{t.stockValidation}</p>
+        <ul className="mt-2 list-inside list-disc space-y-1 text-xs">
+          {orderPreview.stockShortages.map((shortage) => {
+            const product = products.find((item) => item.id === shortage.product_id);
+            return (
+              <li key={shortage.product_id}>
+                {product?.name ?? t.products} · {t.requested}: {shortage.requested} · {t.available}: {shortage.available}
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+    )}
     <div className="mb-6 flex items-center gap-3"><Link href="/orders" aria-label={t.back} className="grid size-10 place-items-center rounded-xl border border-[#dfe5e7] bg-white text-[#526174]" data-testid="link-back-orders">{rtl ? <ArrowRight size={17}/> : <ArrowLeft size={17}/>}</Link><div><p className="text-[10px] font-extrabold tracking-[.16em] text-[#927a46]">{t.orders}</p><h1 className="mt-1 text-2xl font-extrabold tracking-tight text-[#101b30]">{details ? t.editTitle : t.createTitle}</h1></div></div>
     {loading ? loadingBlock : error ? errorBlock : !details && params.id ? <div className={`${panel} p-6 text-center`} data-testid="state-order-not-found">{t.notFound}</div> : <form onSubmit={(e)=>void submitOrder(e)} className="grid gap-5 lg:grid-cols-[1fr_340px]" data-testid="form-order">
       <div className="space-y-5">
         <section className={`${panel} p-5 sm:p-6`}><h2 className="mb-4 text-sm font-extrabold">{t.customer}</h2><label className="grid gap-1.5 text-xs font-bold">{t.chooseCustomer}<select required value={orderDraft.customer_id} onChange={(e)=>setOrderDraft({...orderDraft,customer_id:e.target.value})} className={control} aria-label={t.chooseCustomer} data-testid="select-order-customer"><option value="">{t.chooseCustomer}</option>{customers.map((customer)=><option key={customer.id} value={customer.id}>{customer.name} · {customer.phone}</option>)}</select></label><Link href="/customers" className="mt-3 inline-flex items-center gap-1.5 text-xs font-bold text-[#167b70]" data-testid="link-manage-customers"><Plus size={14}/>{t.addCustomer}</Link></section>
          <section className={`${panel} overflow-hidden`}><div className="flex items-center justify-between border-b border-[#edf0ed] px-5 py-4 sm:px-6"><h2 className="text-sm font-extrabold">{t.products}</h2><button type="button" disabled={orderDraft.items.length >= 50} onClick={()=>setOrderDraft({...orderDraft,items:[...orderDraft.items,{product_id:"",quantity:1}]})} className="inline-flex items-center gap-1.5 rounded-xl border border-[#dfe5e7] px-3 py-2 text-xs font-bold text-[#526174] disabled:opacity-50" aria-label={t.addProduct} data-testid="button-add-order-item"><PackagePlus size={15}/>{t.addProduct}</button></div>
-           {products.length === 0 ? <p className="px-5 py-8 text-center text-sm text-[#788493]" data-testid="state-no-products">{t.noProducts}</p> : <div className="divide-y divide-[#edf0ed]">{orderDraft.items.map((item,index)=><div key={index} className="grid grid-cols-[1fr_90px_38px] items-end gap-2 px-4 py-4 sm:grid-cols-[1fr_115px_38px] sm:px-6" data-testid={`row-order-item-${index}`}><label className="grid min-w-0 gap-1.5 text-[10px] font-bold text-[#788493]">{t.item}<select value={item.product_id} onChange={(e)=>setOrderDraft({...orderDraft,items:orderDraft.items.map((row,i)=>i===index?{...row,product_id:e.target.value}:row)})} className={control} aria-label={`${t.item} ${index+1}`} data-testid={`select-product-${index}`}><option value="">{t.chooseProduct}</option>{products.filter((product)=>!orderDraft.items.some((row,rowIndex)=>rowIndex!==index&&row.product_id===product.id)).map((p)=><option key={p.id} value={p.id}>{p.name} — {money(p.selling_price,p.currency_code,lang)}</option>)}</select></label><label className="grid gap-1.5 text-[10px] font-bold text-[#788493]">{t.quantity}<input type="number" min="1" max="99" step="1" value={item.quantity} onChange={(e)=>setOrderDraft({...orderDraft,items:orderDraft.items.map((row,i)=>i===index?{...row,quantity:Number(e.target.value)}:row)})} className={control} aria-label={`${t.quantity} ${index+1}`} data-testid={`input-quantity-${index}`}/></label><button type="button" onClick={()=>setOrderDraft({...orderDraft,items:orderDraft.items.length>1?orderDraft.items.filter((_,i)=>i!==index):[{product_id:"",quantity:1}]})} aria-label={`${t.cancel} ${t.item}`} className="mb-0.5 grid size-10 place-items-center rounded-xl border border-[#e3e8e5] text-[#9b5a50]" data-testid={`button-remove-item-${index}`}><X size={15}/></button></div>)}</div>}</section>
+            {products.length === 0 ? <p className="px-5 py-8 text-center text-sm text-[#788493]" data-testid="state-no-products">{t.noProducts}</p> : <div className="divide-y divide-[#edf0ed]">{orderDraft.items.map((item,index)=><div key={index} className="grid grid-cols-[1fr_90px_38px] items-end gap-2 px-4 py-4 sm:grid-cols-[1fr_115px_38px] sm:px-6" data-testid={`row-order-item-${index}`}><label className="grid min-w-0 gap-1.5 text-[10px] font-bold text-[#788493]">{t.item}<select value={item.product_id} onChange={(e)=>setOrderDraft({...orderDraft,items:orderDraft.items.map((row,i)=>i===index?{...row,product_id:e.target.value}:row)})} className={control} aria-label={`${t.item} ${index+1}`} data-testid={`select-product-${index}`}><option value="">{t.chooseProduct}</option>{products.filter((product)=>!orderDraft.items.some((row,rowIndex)=>rowIndex!==index&&row.product_id===product.id)).map((p)=><option key={p.id} value={p.id}>{p.name} — {money(p.selling_price,p.currency_code,lang)} — {t.available}: {availableQuantityForOrder(p.id, products, details?.items ?? [])}</option>)}</select></label><label className="grid gap-1.5 text-[10px] font-bold text-[#788493]">{t.quantity}<input type="number" min="1" max="99" step="1" value={item.quantity} onChange={(e)=>setOrderDraft({...orderDraft,items:orderDraft.items.map((row,i)=>i===index?{...row,quantity:Number(e.target.value)}:row)})} className={control} aria-label={`${t.quantity} ${index+1}`} data-testid={`input-quantity-${index}`}/></label><button type="button" onClick={()=>setOrderDraft({...orderDraft,items:orderDraft.items.length>1?orderDraft.items.filter((_,i)=>i!==index):[{product_id:"",quantity:1}]})} aria-label={`${t.cancel} ${t.item}`} className="mb-0.5 grid size-10 place-items-center rounded-xl border border-[#e3e8e5] text-[#9b5a50]" data-testid={`button-remove-item-${index}`}><X size={15}/></button></div>)}</div>}</section>
         <section className={`${panel} grid gap-3 p-5 sm:grid-cols-3 sm:p-6`}><label className="grid gap-1.5 text-xs font-bold">{t.orderDate}<input type="date" value={orderDraft.order_date} onChange={(e)=>setOrderDraft({...orderDraft,order_date:e.target.value})} className={control} aria-label={t.orderDate} data-testid="input-order-date"/></label><label className="grid gap-1.5 text-xs font-bold">{t.status}<select value={orderDraft.order_status} onChange={(e)=>setOrderDraft({...orderDraft,order_status:e.target.value as OrderStatus})} className={control} aria-label={t.status} data-testid="select-create-order-status">{orderStatuses.map((v)=><option key={v} value={v}>{labelFor(v,lang)}</option>)}</select></label><label className="grid gap-1.5 text-xs font-bold">{t.payment}<select value={orderDraft.payment_status} onChange={(e)=>setOrderDraft({...orderDraft,payment_status:e.target.value as PaymentStatus})} className={control} aria-label={t.payment} data-testid="select-create-payment-status">{paymentStatuses.map((v)=><option key={v} value={v}>{labelFor(v,lang)}</option>)}</select></label></section>
       </div>
      <aside className="h-fit space-y-4 lg:sticky lg:top-5"><section className={`${panel} p-5 sm:p-6`}><h2 className="mb-4 text-sm font-extrabold">{t.total}</h2><label className="mb-3 grid gap-1.5 text-xs font-bold">{t.discount}<input inputMode="decimal" value={orderDraft.discount} onChange={(e)=>setOrderDraft({...orderDraft,discount:e.target.value})} className={control} aria-label={t.discount} data-testid="input-order-discount"/></label><label className="grid gap-1.5 text-xs font-bold">{t.shipping}<input inputMode="decimal" value={orderDraft.shipping_fee} onChange={(e)=>setOrderDraft({...orderDraft,shipping_fee:e.target.value})} className={control} aria-label={t.shipping} data-testid="input-order-shipping"/></label><div className="mt-4 space-y-2 border-t border-[#edf0ed] pt-4 text-sm"><div className="flex justify-between text-[#788493]"><span>{t.subtotal}</span>{exactMoney(orderPreview.subtotal,profile.currency_code,lang)}</div><div className="flex justify-between text-[#788493]"><span>{t.discount}</span>{orderPreview.discount === null ? <span>—</span> : <span>−{exactMoney(orderPreview.discount,profile.currency_code,lang)}</span>}</div><div className="flex justify-between text-[#788493]"><span>{t.shipping}</span>{orderPreview.shipping === null ? <span>—</span> : exactMoney(orderPreview.shipping,profile.currency_code,lang)}</div><div className="flex justify-between border-t border-[#edf0ed] pt-3 font-extrabold"><span>{t.total}</span>{orderPreview.total === null ? <span>—</span> : exactMoney(orderPreview.total,profile.currency_code,lang)}</div></div><p className="mt-4 rounded-xl bg-[#f4f5f0] p-3 text-[11px] leading-5 text-[#788493]">{t.previewNote}</p>
