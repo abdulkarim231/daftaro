@@ -77,6 +77,17 @@ test("reports requested quantities that exceed per-product stock", () => {
   );
 });
 
+test("rechecks an order against a refreshed product balance", () => {
+  const request = [{ product_id: "product-a", quantity: 5 }];
+  const staleProducts = [{ id: "product-a", available_quantity: 7 }];
+  const refreshedProducts = [{ id: "product-a", available_quantity: 4 }];
+
+  assert.deepEqual(findStockShortages(request, staleProducts), []);
+  assert.deepEqual(findStockShortages(request, refreshedProducts), [
+    { product_id: "product-a", requested: 5, available: 4 },
+  ]);
+});
+
 test("warns separately when a valid order leaves stock at the low-stock threshold", () => {
   const products = [
     { id: "product-a", available_quantity: 8, low_stock_threshold: 3 },

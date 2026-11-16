@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import {
   ArrowLeft, ArrowRight, Check, CircleAlert, Clipboard, FileText, PackagePlus,
   Pencil, Plus, Printer, Search, UserRound, Users, X,
@@ -52,6 +52,8 @@ const C = {
     products: "المنتجات", quantity: "الكمية", addProduct: "إضافة منتج", noProducts: "لا توجد منتجات قابلة للطلب بهذه العملة.",
     available: "المتاح", requested: "المطلوب",
     stockValidation: "الكمية المطلوبة تتجاوز المتاح لبعض المنتجات. عدّل الكمية أو المخزون قبل حفظ الطلب.",
+    stockRefreshError: "تعذر تحديث الكميات المتاحة. أعد المحاولة قبل حفظ الطلب.",
+    stockItemShortage: "المتاح أقل من المطلوب",
     lowStockWarning: "بعد هذا الطلب، سيصل مخزون بعض المنتجات إلى حد التنبيه أو أقل. ما زالت الكمية كافية لحفظ الطلب.",
     remainingAfterOrder: "المتبقي بعد الطلب", lowStockThreshold: "حد المخزون المنخفض",
     discount: "الخصم", shipping: "رسوم التوصيل", orderDate: "تاريخ الطلب", create: "حفظ الطلب",
@@ -105,6 +107,8 @@ const C = {
     products: "Products", quantity: "Quantity", addProduct: "Add product", noProducts: "No orderable products in this currency.",
     available: "Available", requested: "Requested",
     stockValidation: "The requested quantity exceeds available stock for one or more products. Adjust the quantity or stock before saving.",
+    stockRefreshError: "Available stock could not be refreshed. Try again before saving the order.",
+    stockItemShortage: "Available stock is below the requested quantity",
     lowStockWarning: "After this order, some products will be at or below their low-stock threshold. There is still enough stock to save the order.",
     remainingAfterOrder: "Remaining after order", lowStockThreshold: "Low-stock threshold",
     discount: "Discount", shipping: "Shipping fee", orderDate: "Order date", create: "Save order",
@@ -182,6 +186,7 @@ export default function OrdersUI({ screen }: { screen: Screen }) {
   const [params, setParams] = useState<{ id: string; token: string }>({ id: "", token: "" });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const loadError = useRef(error);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [orders, setOrders] = useState<OrderSummary[]>([]);
   const [profile, setProfile] = useState<{ business_name: string; currency_code: string }>({ business_name: "", currency_code: "KWD" });
@@ -206,10 +211,13 @@ export default function OrdersUI({ screen }: { screen: Screen }) {
   const [formError, setFormError] = useState("");
   const [generatingPaymentLink, setGeneratingPaymentLink] = useState(false);
   const [paymentLinkError, setPaymentLinkError] = useState("");
+  const [stockRefreshError, setStockRefreshError] = useState("");
   const [orderDraft, setOrderDraft] = useState({ customer_id: "", items: [{ product_id: "", quantity: 1 }], discount: "0", shipping_fee: "0", order_date: localDate(), order_status: "New" as OrderStatus, payment_status: "Unpaid" as PaymentStatus });
   const [statusDraft, setStatusDraft] = useState<{ order_status: OrderStatus; payment_status: PaymentStatus }>({ order_status: "New", payment_status: "Unpaid" });
+  const stockRefreshVersion = useRef(0);
   const t = C[lang];
   const rtl = lang === "ar";
+  loadError.current = error;
 
   useEffect(() => {
     document.documentElement.lang = lang;
@@ -286,6 +294,42 @@ export default function OrdersUI({ screen }: { screen: Screen }) {
     } finally { setLoading(false); }
   }, [router, screen]);
   useEffect(() => { void load(); }, [load]);
+
+  const refreshOrderableProducts = useCallback(async () => {
+    const requestVersion = ++stockRefreshVersion.current;
+    try {
+      const freshProducts = await getOrderableProducts(profile.currency_code);
+      if (requestVersion === stockRefreshVersion.current) {
+        setProducts(freshProducts);
+        setStockRefreshError("");
+      }
+      return freshProducts;
+    } catch (refreshError) {
+      if (requestVersion === stockRefreshVersion.current) {
+        setStockRefreshError(t.stockRefreshError);
+      }
+      throw refreshError;
+    }
+  }, [profile.currency_code, t.stockRefreshError]);
+
+  useEffect(() => {
+    if (screen !== "create-order" || loading || loadError.current || busy || !profile.currency_code) return;
+    const refresh = () => {
+      void refreshOrderableProducts().catch(() => {});
+    };
+    const interval = window.setInterval(refresh, 15_000);
+    const onFocus = () => refresh();
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") refresh();
+    };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [busy, loading, profile.currency_code, refreshOrderableProducts, screen]);
 
   const filteredCustomers = useMemo(() => customers.filter((customer) =>
     `${customer.name} ${customer.phone}`.toLocaleLowerCase().includes(search.toLocaleLowerCase())), [customers, search]);
@@ -371,15 +415,22 @@ export default function OrdersUI({ screen }: { screen: Screen }) {
       || items.some((item) => !item.product_id || !Number.isInteger(item.quantity) || item.quantity < 1 || item.quantity > 99)
       || new Set(productIds).size !== productIds.length
     ) { setFormError(t.validationOrder); return; }
-    if (orderPreview.stockShortages.length > 0) {
-      setFormError(t.stockValidation);
-      return;
-    }
     const discount = parseAmountToMilli(normalizeMoneyInput(orderDraft.discount.trim() || "0"));
     const shipping = parseAmountToMilli(normalizeMoneyInput(orderDraft.shipping_fee.trim() || "0"));
     if (!orderPreview.valid || discount === null || shipping === null) { setFormError(t.validationMoney); return; }
     setBusy(true);
     try {
+      let freshProducts: BusinessProduct[];
+      try {
+        freshProducts = await refreshOrderableProducts();
+      } catch {
+        setStockRefreshError(t.stockRefreshError);
+        return;
+      }
+      if (findStockShortages(items, freshProducts, details?.items ?? []).length > 0) {
+        setFormError(t.stockValidation);
+        return;
+      }
       const result = await saveOrder({ ...(details ? { order_id: details.id } : {}), customer_id: orderDraft.customer_id, items, discount: milliToDatabaseValue(discount), shipping_fee: milliToDatabaseValue(shipping), order_date: orderDraft.order_date, order_status: orderDraft.order_status, payment_status: orderDraft.payment_status });
       try {
         await createInvoicePaymentLink(result.order_id);
@@ -387,7 +438,17 @@ export default function OrdersUI({ screen }: { screen: Screen }) {
         // The order is already saved. The details screen offers a safe retry.
       }
       router.push(`/order-details?id=${encodeURIComponent(result.order_id)}`);
-    } catch { setFormError(t.saveError); } finally { setBusy(false); }
+    } catch (saveError) {
+      const message = saveError && typeof saveError === "object" && "message" in saveError
+        ? String(saveError.message)
+        : "";
+      if (/insufficient stock/i.test(message)) {
+        setFormError(t.stockValidation);
+        try { await refreshOrderableProducts(); } catch {}
+      } else {
+        setFormError(t.saveError);
+      }
+    } finally { setBusy(false); }
   }
   async function updateStatus(next?: OrderStatus) {
     if (!details) return;
@@ -508,6 +569,15 @@ export default function OrdersUI({ screen }: { screen: Screen }) {
   </>);
 
   if (screen === "create-order") return shell(<>
+    {stockRefreshError && (
+      <div
+        role="alert"
+        className="mb-5 rounded-xl border border-[#e8c5bd] bg-[#fff4f1] px-4 py-3 text-sm text-[#a34d43]"
+        data-testid="alert-stock-refresh-error"
+      >
+        {stockRefreshError}
+      </div>
+    )}
     {orderPreview.stockShortages.length > 0 && (
       <div
         role="alert"
@@ -551,8 +621,92 @@ export default function OrdersUI({ screen }: { screen: Screen }) {
     {loading ? loadingBlock : error ? errorBlock : !details && params.id ? <div className={`${panel} p-6 text-center`} data-testid="state-order-not-found">{t.notFound}</div> : <form onSubmit={(e)=>void submitOrder(e)} className="grid gap-5 lg:grid-cols-[1fr_340px]" data-testid="form-order">
       <div className="space-y-5">
         <section className={`${panel} p-5 sm:p-6`}><h2 className="mb-4 text-sm font-extrabold">{t.customer}</h2><label className="grid gap-1.5 text-xs font-bold">{t.chooseCustomer}<select required value={orderDraft.customer_id} onChange={(e)=>setOrderDraft({...orderDraft,customer_id:e.target.value})} className={control} aria-label={t.chooseCustomer} data-testid="select-order-customer"><option value="">{t.chooseCustomer}</option>{customers.map((customer)=><option key={customer.id} value={customer.id}>{customer.name} · {customer.phone}</option>)}</select></label><Link href="/customers" className="mt-3 inline-flex items-center gap-1.5 text-xs font-bold text-[#167b70]" data-testid="link-manage-customers"><Plus size={14}/>{t.addCustomer}</Link></section>
-         <section className={`${panel} overflow-hidden`}><div className="flex items-center justify-between border-b border-[#edf0ed] px-5 py-4 sm:px-6"><h2 className="text-sm font-extrabold">{t.products}</h2><button type="button" disabled={orderDraft.items.length >= 50} onClick={()=>setOrderDraft({...orderDraft,items:[...orderDraft.items,{product_id:"",quantity:1}]})} className="inline-flex items-center gap-1.5 rounded-xl border border-[#dfe5e7] px-3 py-2 text-xs font-bold text-[#526174] disabled:opacity-50" aria-label={t.addProduct} data-testid="button-add-order-item"><PackagePlus size={15}/>{t.addProduct}</button></div>
-            {products.length === 0 ? <p className="px-5 py-8 text-center text-sm text-[#788493]" data-testid="state-no-products">{t.noProducts}</p> : <div className="divide-y divide-[#edf0ed]">{orderDraft.items.map((item,index)=><div key={index} className="grid grid-cols-[1fr_90px_38px] items-end gap-2 px-4 py-4 sm:grid-cols-[1fr_115px_38px] sm:px-6" data-testid={`row-order-item-${index}`}><label className="grid min-w-0 gap-1.5 text-[10px] font-bold text-[#788493]">{t.item}<select value={item.product_id} onChange={(e)=>setOrderDraft({...orderDraft,items:orderDraft.items.map((row,i)=>i===index?{...row,product_id:e.target.value}:row)})} className={control} aria-label={`${t.item} ${index+1}`} data-testid={`select-product-${index}`}><option value="">{t.chooseProduct}</option>{products.filter((product)=>!orderDraft.items.some((row,rowIndex)=>rowIndex!==index&&row.product_id===product.id)).map((p)=><option key={p.id} value={p.id}>{p.name} — {money(p.selling_price,p.currency_code,lang)} — {t.available}: {availableQuantityForOrder(p.id, products, details?.items ?? [])}</option>)}</select></label><label className="grid gap-1.5 text-[10px] font-bold text-[#788493]">{t.quantity}<input type="number" min="1" max="99" step="1" value={item.quantity} onChange={(e)=>setOrderDraft({...orderDraft,items:orderDraft.items.map((row,i)=>i===index?{...row,quantity:Number(e.target.value)}:row)})} className={control} aria-label={`${t.quantity} ${index+1}`} data-testid={`input-quantity-${index}`}/></label><button type="button" onClick={()=>setOrderDraft({...orderDraft,items:orderDraft.items.length>1?orderDraft.items.filter((_,i)=>i!==index):[{product_id:"",quantity:1}]})} aria-label={`${t.cancel} ${t.item}`} className="mb-0.5 grid size-10 place-items-center rounded-xl border border-[#e3e8e5] text-[#9b5a50]" data-testid={`button-remove-item-${index}`}><X size={15}/></button></div>)}</div>}</section>
+          <section className={`${panel} overflow-hidden`}><div className="flex items-center justify-between border-b border-[#edf0ed] px-5 py-4 sm:px-6"><h2 className="text-sm font-extrabold">{t.products}</h2><button type="button" disabled={orderDraft.items.length >= 50} onClick={()=>{setFormError("");setOrderDraft({...orderDraft,items:[...orderDraft.items,{product_id:"",quantity:1}]});}} className="inline-flex items-center gap-1.5 rounded-xl border border-[#dfe5e7] px-3 py-2 text-xs font-bold text-[#526174] disabled:opacity-50" aria-label={t.addProduct} data-testid="button-add-order-item"><PackagePlus size={15}/>{t.addProduct}</button></div>
+             {products.length === 0 ? <p className="px-5 py-8 text-center text-sm text-[#788493]" data-testid="state-no-products">{t.noProducts}</p> : (
+               <div className="divide-y divide-[#edf0ed]">
+                 {orderDraft.items.map((item, index) => {
+                   const shortage = orderPreview.stockShortages.find((row) => row.product_id === item.product_id);
+                   return (
+                     <div key={index} className="px-4 py-4 sm:px-6" data-testid={`row-order-item-${index}`}>
+                       <div className="grid grid-cols-[1fr_90px_38px] items-end gap-2 sm:grid-cols-[1fr_115px_38px]">
+                         <label className="grid min-w-0 gap-1.5 text-[10px] font-bold text-[#788493]">
+                           {t.item}
+                           <select
+                             value={item.product_id}
+                             onChange={(event) => {
+                               setFormError("");
+                               setOrderDraft({
+                                 ...orderDraft,
+                                 items: orderDraft.items.map((row, rowIndex) => rowIndex === index ? { ...row, product_id: event.target.value } : row),
+                               });
+                             }}
+                             className={control}
+                             aria-label={`${t.item} ${index + 1}`}
+                             data-testid={`select-product-${index}`}
+                           >
+                             <option value="">{t.chooseProduct}</option>
+                             {products
+                               .filter((product) => !orderDraft.items.some((row, rowIndex) => rowIndex !== index && row.product_id === product.id))
+                               .map((product) => (
+                                 <option key={product.id} value={product.id}>
+                                   {product.name} — {money(product.selling_price, product.currency_code, lang)} — {t.available}: {availableQuantityForOrder(product.id, products, details?.items ?? [])}
+                                 </option>
+                               ))}
+                           </select>
+                         </label>
+                         <label className="grid gap-1.5 text-[10px] font-bold text-[#788493]">
+                           {t.quantity}
+                           <input
+                             type="number"
+                             min="1"
+                             max="99"
+                             step="1"
+                             value={item.quantity}
+                             onChange={(event) => {
+                               setFormError("");
+                               setOrderDraft({
+                                 ...orderDraft,
+                                 items: orderDraft.items.map((row, rowIndex) => rowIndex === index ? { ...row, quantity: Number(event.target.value) } : row),
+                               });
+                             }}
+                             className={control}
+                             aria-label={`${t.quantity} ${index + 1}`}
+                             data-testid={`input-quantity-${index}`}
+                           />
+                         </label>
+                         <button
+                           type="button"
+                           onClick={() => {
+                             setFormError("");
+                             setOrderDraft({
+                               ...orderDraft,
+                               items: orderDraft.items.length > 1
+                                 ? orderDraft.items.filter((_, rowIndex) => rowIndex !== index)
+                                 : [{ product_id: "", quantity: 1 }],
+                             });
+                           }}
+                           aria-label={`${t.cancel} ${t.item}`}
+                           className="mb-0.5 grid size-10 place-items-center rounded-xl border border-[#e3e8e5] text-[#9b5a50]"
+                           data-testid={`button-remove-item-${index}`}
+                         >
+                           <X size={15} />
+                         </button>
+                       </div>
+                       {shortage && (
+                         <p
+                           role="alert"
+                           className="mt-2 rounded-lg bg-[#fff4f1] px-3 py-2 text-xs font-semibold text-[#a34d43]"
+                           data-testid={`stock-shortage-item-${index}`}
+                         >
+                           {t.stockItemShortage} · {t.requested}: {shortage.requested} · {t.available}: {shortage.available}
+                         </p>
+                       )}
+                     </div>
+                   );
+                 })}
+               </div>
+             )}
+           </section>
         <section className={`${panel} grid gap-3 p-5 sm:grid-cols-3 sm:p-6`}><label className="grid gap-1.5 text-xs font-bold">{t.orderDate}<input type="date" value={orderDraft.order_date} onChange={(e)=>setOrderDraft({...orderDraft,order_date:e.target.value})} className={control} aria-label={t.orderDate} data-testid="input-order-date"/></label><label className="grid gap-1.5 text-xs font-bold">{t.status}<select value={orderDraft.order_status} onChange={(e)=>setOrderDraft({...orderDraft,order_status:e.target.value as OrderStatus})} className={control} aria-label={t.status} data-testid="select-create-order-status">{orderStatuses.map((v)=><option key={v} value={v}>{labelFor(v,lang)}</option>)}</select></label><label className="grid gap-1.5 text-xs font-bold">{t.payment}<select value={orderDraft.payment_status} onChange={(e)=>setOrderDraft({...orderDraft,payment_status:e.target.value as PaymentStatus})} className={control} aria-label={t.payment} data-testid="select-create-payment-status">{paymentStatuses.map((v)=><option key={v} value={v}>{labelFor(v,lang)}</option>)}</select></label></section>
       </div>
      <aside className="h-fit space-y-4 lg:sticky lg:top-5"><section className={`${panel} p-5 sm:p-6`}><h2 className="mb-4 text-sm font-extrabold">{t.total}</h2><label className="mb-3 grid gap-1.5 text-xs font-bold">{t.discount}<input inputMode="decimal" value={orderDraft.discount} onChange={(e)=>setOrderDraft({...orderDraft,discount:e.target.value})} className={control} aria-label={t.discount} data-testid="input-order-discount"/></label><label className="grid gap-1.5 text-xs font-bold">{t.shipping}<input inputMode="decimal" value={orderDraft.shipping_fee} onChange={(e)=>setOrderDraft({...orderDraft,shipping_fee:e.target.value})} className={control} aria-label={t.shipping} data-testid="input-order-shipping"/></label><div className="mt-4 space-y-2 border-t border-[#edf0ed] pt-4 text-sm"><div className="flex justify-between text-[#788493]"><span>{t.subtotal}</span>{exactMoney(orderPreview.subtotal,profile.currency_code,lang)}</div><div className="flex justify-between text-[#788493]"><span>{t.discount}</span>{orderPreview.discount === null ? <span>—</span> : <span>−{exactMoney(orderPreview.discount,profile.currency_code,lang)}</span>}</div><div className="flex justify-between text-[#788493]"><span>{t.shipping}</span>{orderPreview.shipping === null ? <span>—</span> : exactMoney(orderPreview.shipping,profile.currency_code,lang)}</div><div className="flex justify-between border-t border-[#edf0ed] pt-3 font-extrabold"><span>{t.total}</span>{orderPreview.total === null ? <span>—</span> : exactMoney(orderPreview.total,profile.currency_code,lang)}</div></div><p className="mt-4 rounded-xl bg-[#f4f5f0] p-3 text-[11px] leading-5 text-[#788493]">{t.previewNote}</p>
