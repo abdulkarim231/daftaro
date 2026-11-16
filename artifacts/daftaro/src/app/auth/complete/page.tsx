@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import CompleteClient from "./complete-client";
 
 export const metadata: Metadata = {
-  title: "Business profile — Daftaro",
-  description: "Set up your Daftaro business profile.",
+  title: "Business profile — Daftarik",
+  description: "Set up your Daftarik business profile.",
   robots: { index: false, follow: false },
 };
 

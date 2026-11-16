@@ -1,6 +1,6 @@
 kind = "web"
 previewPath = "/"
-title = "Daftaro"
+title = "دفترك | Daftarik"
 description = "Arabic-first financial clarity for small businesses in Kuwait and the Gulf, helping owners understand revenue, expenses, and real profit."
 version = "1.0.0"
 id = "artifacts/daftaro"

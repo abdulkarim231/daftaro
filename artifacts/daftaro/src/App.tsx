@@ -16,9 +16,9 @@ const copy = {
     eyebrow: 'دفتر أوضح. قرار أهدأ.',
     titleStart: 'شغلك يكبر،',
     titleAccent: 'والربح يصير أوضح.',
-    intro: 'دفترُك مساحة مالية بسيطة لصاحب المشروع الصغير. يساعدك على فهم ما يدخل وما يخرج، وما يتبقى فعلًا — من دون أن تحتاج إلى خبرة محاسبية.',
+    intro: 'دفترك مساحة مالية بسيطة لصاحب المشروع الصغير. يساعدك على فهم ما يدخل وما يخرج، وما يتبقى فعلًا — من دون أن تحتاج إلى خبرة محاسبية.',
     primary: 'اكتشف الفكرة',
-    secondary: 'كيف يعمل دفترُك؟',
+    secondary: 'كيف يعمل دفترك؟',
     note: 'مصمم لأصحاب المشاريع الصغيرة والمنزلية في الخليج',
     visualKicker: 'مساحة عملك، على مهل',
     visualTitle: 'صورة أوضح لأعمالك',
@@ -39,29 +39,29 @@ const copy = {
     pain1: 'دخل ومصاريف في أماكن مختلفة',
     pain2: 'تكلفة الطلب لا تقتصر على سعر المنتج',
     pain3: 'قرارات العمل مبنية على الإحساس لا الصورة الكاملة',
-    bridge: 'دفترُك يبدأ من هنا: ترتيب هادئ، يفهمه صاحب المشروع.',
+    bridge: 'دفترك يبدأ من هنا: ترتيب هادئ، يفهمه صاحب المشروع.',
     section2Eyebrow: 'بلا تعقيد',
     section2Title: 'من تفاصيل اليوم إلى صورة مفهومة.',
-    section2Text: 'دفترُك يخطط لجمع تفاصيل عملك الصغيرة في مساحة مرتبة، ثم عرضها بلغة واضحة تساعدك على اتخاذ الخطوة التالية.',
+    section2Text: 'دفترك يخطط لجمع تفاصيل عملك الصغيرة في مساحة مرتبة، ثم عرضها بلغة واضحة تساعدك على اتخاذ الخطوة التالية.',
     steps: [
       ['١', 'سجّل ما يحدث', 'أضف المبيعات والمصروفات بالطريقة التي تناسب يومك.'],
       ['٢', 'رتّب التفاصيل', 'اجمع المنتجات والتكاليف والطلبات في صورة أسهل للمتابعة.'],
       ['٣', 'افهم ما يتبقى', 'شاهد ملخصًا أوضح يساعدك في التخطيط بثقة أكبر.'],
     ],
-    section3Eyebrow: 'ما يخطط دفترُك لتقديمه',
+    section3Eyebrow: 'ما يخطط دفترك لتقديمه',
     section3Title: 'وضوح عملي، من أول طلب إلى نهاية الشهر.',
     feature1Title: 'صورة الربح الحقيقي', feature1Text: 'فهم ما يتبقى بعد احتساب التكاليف، لا الاكتفاء بمجموع المبيعات.',
     feature2Title: 'تنظيم المبيعات والمصاريف', feature2Text: 'مكان واحد لتفاصيل الطلبات والتكاليف اليومية التي قد تضيع بين الرسائل.',
     feature3Title: 'متابعة المنتجات', feature3Text: 'نظرة مرتبة على المنتجات وتكاليفها لتعرف ما يستحق اهتمامك.',
     feature4Title: 'ملخصات مفهومة', feature4Text: 'عرض واضح لأداء العمل يساعدك على ملاحظة التغيّر والتخطيط له.',
     section4Eyebrow: 'من واقع يومك',
-    section4Title: 'لكل مشروع صغير طريقته. دفترُك يتسع لها.',
+    section4Title: 'لكل مشروع صغير طريقته. دفترك يتسع لها.',
     section4Text: 'سواء كنت تجهّز الطلبات من البيت أو تدير متجرًا صغيرًا، المهم أن تكون الصورة المالية على مقاس يومك — لا العكس.',
     persona1: 'مشاريع منزلية', persona1b: 'حلويات، عطور، أعمال يدوية',
     persona2: 'متاجر صغيرة', persona2b: 'منتجات مختارة وطلبات مباشرة',
     persona3: 'متاجر Instagram وWhatsApp', persona3b: 'الطلبات والمبيعات عبر الرسائل',
     quote: 'معرفة ما يتبقى بعد التكاليف تساعدك على تقييم وقتك وجهدك.',
-    quoteBy: 'الفكرة الأساسية لدفترُك',
+    quoteBy: 'الفكرة الأساسية لدفترك',
     section5Eyebrow: 'صُمّم للطمأنينة',
     section5Title: 'أداة مالية تتحدث بلغتك، وتحترم وقتك.',
     trust1Title: 'واضح من البداية', trust1Text: 'لغة مباشرة بعيدًا عن المصطلحات المحاسبية الثقيلة.',
@@ -71,16 +71,16 @@ const copy = {
     faqTitle: 'قبل أن تبدأ',
     faq: [
       ['هل أحتاج إلى خبرة في المحاسبة؟', 'لا. الفكرة أن تكون التفاصيل المالية مفهومة لصاحب المشروع نفسه، بلغة يومية وبلا تعقيد.'],
-      ['هل دفترُك مخصص للمشاريع المنزلية فقط؟', 'لا. الفكرة تناسب المشاريع المنزلية والمتاجر الصغيرة ومقدمي الخدمات الذين يريدون فهم دخلهم وتكاليفهم.'],
-      ['هل أستطيع الاعتماد عليه لإقراراتي أو التزاماتي الرسمية؟', 'دفترُك يهدف إلى تنظيم صورة عملك ومساعدتك على فهمها. لا يحل محل استشارة محاسب أو جهة مختصة بالمتطلبات الرسمية.'],
-      ['متى يمكنني استخدامه؟', 'دفترُك في مرحلة التخطيط حاليًا، وسيُعلن عن تفاصيل الإطلاق لاحقًا.'],
+      ['هل دفترك مخصص للمشاريع المنزلية فقط؟', 'لا. الفكرة تناسب المشاريع المنزلية والمتاجر الصغيرة ومقدمي الخدمات الذين يريدون فهم دخلهم وتكاليفهم.'],
+      ['هل أستطيع الاعتماد عليه لإقراراتي أو التزاماتي الرسمية؟', 'دفترك يهدف إلى تنظيم صورة عملك ومساعدتك على فهمها. لا يحل محل استشارة محاسب أو جهة مختصة بالمتطلبات الرسمية.'],
+      ['متى يمكنني استخدامه؟', 'دفترك في مرحلة التخطيط حاليًا، وسيُعلن عن تفاصيل الإطلاق لاحقًا.'],
     ],
     ctaEyebrow: 'في مرحلة التخطيط',
     ctaTitle: 'وضوح مالي، خطوة بخطوة.',
-    ctaText: 'نخطط لدفترُك ليجعل تفاصيل المشروع أوضح ويساعدك على فهم ما يتبقى بعد التكاليف.',
+    ctaText: 'نخطط لدفترك ليجعل تفاصيل المشروع أوضح ويساعدك على فهم ما يتبقى بعد التكاليف.',
     ctaButton: 'استكشف الفكرة',
-    footer: 'دفترُك — وضوح مالي لأصحاب المشاريع الصغيرة.',
-    disclaimer: 'دفترُك في مرحلة التخطيط. الميزات المذكورة تصف قدرات مخططًا لها وليست خدمة متاحة حاليًا.',
+    footer: 'دفترك — وضوح مالي لأصحاب المشاريع الصغيرة.',
+    disclaimer: 'دفترك في مرحلة التخطيط. الميزات المذكورة تصف قدرات مخططًا لها وليست خدمة متاحة حاليًا.',
     made: 'من الكويت، لأصحاب المشاريع في الخليج',
   },
   en: {
@@ -88,9 +88,9 @@ const copy = {
     eyebrow: 'A clearer book. A calmer mind.',
     titleStart: 'Your business is growing.',
     titleAccent: 'Know what stays.',
-    intro: 'Daftaro is a simple financial companion for small businesses. It is being designed to help you understand what comes in, what goes out, and what is truly left — without accounting expertise.',
+    intro: 'Daftarik is a simple financial companion for small businesses. It is being designed to help you understand what comes in, what goes out, and what is truly left — without accounting expertise.',
     primary: 'Explore the idea',
-    secondary: 'How Daftaro works',
+    secondary: 'How Daftarik works',
     note: 'Designed for small and home-based businesses across the Gulf',
     visualKicker: 'A little more clarity',
     visualTitle: 'Your business, in view',
@@ -111,29 +111,29 @@ const copy = {
     pain1: 'Income and expenses live in different places',
     pain2: 'An order costs more than the product itself',
     pain3: 'Decisions rely on instinct, not the full picture',
-    bridge: 'Daftaro starts here: a calmer way to put your business in order.',
+    bridge: 'Daftarik starts here: a calmer way to put your business in order.',
     section2Eyebrow: 'Without the jargon',
     section2Title: 'From everyday details to a picture that makes sense.',
-    section2Text: 'Daftaro is planned to bring the small details of your business into one organized place, then show them in clear language that helps you decide what comes next.',
+    section2Text: 'Daftarik is planned to bring the small details of your business into one organized place, then show them in clear language that helps you decide what comes next.',
     steps: [
       ['01', 'Note what happens', 'Add sales and expenses in a way that fits your day.'],
       ['02', 'Bring details together', 'Keep products, costs and orders easier to follow.'],
       ['03', 'Understand what remains', 'See a clearer summary to help you plan with confidence.'],
     ],
-    section3Eyebrow: 'What Daftaro is being designed for',
+    section3Eyebrow: 'What Daftarik is being designed for',
     section3Title: 'Practical clarity, from the first order to month-end.',
     feature1Title: 'A truer view of profit', feature1Text: 'Understand what remains after costs, rather than looking at sales alone.',
     feature2Title: 'Sales and expense organization', feature2Text: 'One place for order details and everyday costs that can disappear in a chat.',
     feature3Title: 'Product tracking', feature3Text: 'A considered view of products and costs, so you know where to focus.',
     feature4Title: 'Readable summaries', feature4Text: 'A clear view of business activity to help you spot changes and plan ahead.',
     section4Eyebrow: 'Built around real days',
-    section4Title: 'Every small business has its own rhythm. Daftaro can fit it.',
+    section4Title: 'Every small business has its own rhythm. Daftarik can fit it.',
     section4Text: 'Whether you prepare orders at home or run a small shop, your financial picture should fit your day — not the other way around.',
     persona1: 'Home businesses', persona1b: 'Bakes, fragrance, handmade work',
     persona2: 'Small shops', persona2b: 'Independent products and direct orders',
     persona3: 'Instagram & WhatsApp sellers', persona3b: 'Orders and sales through messaging',
     quote: 'Understanding what remains after costs helps you value the time and effort you put in.',
-    quoteBy: 'The idea behind Daftaro',
+    quoteBy: 'The idea behind Daftarik',
     section5Eyebrow: 'Designed for peace of mind',
     section5Title: 'A financial tool that speaks your language and respects your time.',
     trust1Title: 'Clear from the start', trust1Text: 'Plain language, without the weight of accounting jargon.',
@@ -143,28 +143,28 @@ const copy = {
     faqTitle: 'Before you begin',
     faq: [
       ['Do I need accounting experience?', 'No. The idea is to make the financial details understandable to business owners themselves, in everyday language.'],
-      ['Is Daftaro only for home businesses?', 'No. It is intended for home businesses, small shops and service providers who want to understand income and costs.'],
-      ['Can I rely on it for tax filings or official obligations?', 'Daftaro is intended to organize and clarify your business picture. It is not a substitute for an accountant or official guidance.'],
-      ['When can I use it?', 'Daftaro is currently in the planning stage. Launch details will be shared when available.'],
+      ['Is Daftarik only for home businesses?', 'No. It is intended for home businesses, small shops and service providers who want to understand income and costs.'],
+      ['Can I rely on it for tax filings or official obligations?', 'Daftarik is intended to organize and clarify your business picture. It is not a substitute for an accountant or official guidance.'],
+      ['When can I use it?', 'Daftarik is currently in the planning stage. Launch details will be shared when available.'],
     ],
     ctaEyebrow: 'Currently in planning',
     ctaTitle: 'Financial clarity, one step at a time.',
-    ctaText: 'Daftaro is being planned to make the details of your business clearer and help you understand what remains after costs.',
+    ctaText: 'Daftarik is being planned to make the details of your business clearer and help you understand what remains after costs.',
     ctaButton: 'Explore the idea',
-    footer: 'Daftaro — financial clarity for small businesses.',
-    disclaimer: 'Daftaro is in the planning stage. The capabilities described are planned, not currently available.',
+    footer: 'Daftarik — financial clarity for small businesses.',
+    disclaimer: 'Daftarik is in the planning stage. The capabilities described are planned, not currently available.',
     made: 'From Kuwait, for Gulf businesses',
   },
 } as const;
 
-function BrandMark() {
+function BrandMark({ lang }: { lang: Lang }) {
   return (
-    <div className="flex items-center gap-2.5" aria-label="Daftaro">
+    <div className="flex items-center gap-2.5" aria-label={lang === "ar" ? "دفترك" : "Daftarik"}>
       <span className="relative grid size-9 place-items-center rounded-xl bg-[#101b30]">
         <span className="absolute inset-[5px] rounded-[8px] border border-[#d6b878]/70" />
         <span className="relative text-[19px] font-semibold leading-none text-[#d6b878]">د</span>
       </span>
-      <span className="text-[20px] font-extrabold tracking-[-.045em] text-[#101b30]">Daftaro</span>
+      <span className="text-[20px] font-extrabold tracking-[-.045em] text-[#101b30]">{lang === "ar" ? "دفترك" : "Daftarik"}</span>
     </div>
   );
 }
@@ -242,7 +242,7 @@ function App() {
     <main className="page-grain min-h-[100dvh] overflow-hidden" dir={rtl ? 'rtl' : 'ltr'}>
       <header className="sticky top-0 z-30 border-b border-[#e8ebef]/80 bg-[#f5f7fa]/90 backdrop-blur-xl">
         <div className="mx-auto flex h-[72px] max-w-[1220px] items-center justify-between px-5 sm:px-8">
-          <a href="#top" aria-label="Daftaro home" data-testid="link-home" className="outline-ring rounded-xl"><BrandMark /></a>
+          <a href="#top" aria-label={lang === "ar" ? "الصفحة الرئيسية لدفترك" : "Daftarik home"} data-testid="link-home" className="outline-ring rounded-xl"><BrandMark lang={lang} /></a>
           <nav className="hidden items-center gap-8 lg:flex" aria-label={rtl ? 'التنقل الرئيسي' : 'Main navigation'}>
             {t.nav.map((item, i) => <a key={item} href={`#${sectionIds[i]}`} className="nav-link text-[12px] font-semibold text-[#59677c]" data-testid={`link-nav-${i}`}>{item}</a>)}
           </nav>
@@ -391,7 +391,7 @@ function App() {
 
       <footer className="border-t border-[#e2e7ed] bg-[#f0f3f6]">
         <div className="mx-auto flex max-w-[1220px] flex-col gap-5 px-5 py-7 sm:px-8 md:flex-row md:items-center md:justify-between">
-          <div><BrandMark/><p className="mt-3 text-[10px] text-[#758194]">{t.footer}</p></div>
+          <div><BrandMark lang={lang}/><p className="mt-3 text-[10px] text-[#758194]">{t.footer}</p></div>
           <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[10px] font-semibold text-[#758194]">
             <a href="#idea" className="hover:text-[#16a085]" data-testid="link-footer-idea">{t.nav[0]}</a>
             <a href="#how" className="hover:text-[#16a085]" data-testid="link-footer-how">{t.nav[1]}</a>

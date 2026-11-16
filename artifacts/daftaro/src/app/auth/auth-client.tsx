@@ -13,7 +13,7 @@ const text = {
   ar: {
     home: "العودة إلى الصفحة الرئيسية",
     language: "EN",
-    eyebrow: "دفترُك — حسابك",
+    eyebrow: "دفترك — حسابك",
     title: "مساحتك تبدأ من هنا.",
     intro: "سجّل الدخول للوصول إلى لوحة نشاطك وسجل معاملاتك، أو أنشئ حسابًا جديدًا للبدء.",
     signin: "تسجيل الدخول",
@@ -39,7 +39,7 @@ const text = {
   en: {
     home: "Back to home",
     language: "عربي",
-    eyebrow: "Daftaro account",
+    eyebrow: "Daftarik account",
     title: "Your space starts here.",
     intro: "Sign in to open your business dashboard and transaction ledger, or create an account to get started.",
     signin: "Sign in",
@@ -179,14 +179,14 @@ export default function AuthClient({ mode }: { mode: Mode }) {
                   <span className="absolute inset-[5px] rounded-[8px] border border-[#d6b878]/70" />
                   <span className="relative text-xl font-semibold text-[#d6b878]">د</span>
                 </span>
-                <span className="text-xl font-extrabold tracking-[-.04em]">Daftaro</span>
+                <span className="text-xl font-extrabold tracking-[-.04em]">{rtl ? "دفترك" : "Daftarik"}</span>
               </div>
               <p className="mt-16 text-xs font-bold tracking-[.16em] text-[#d6b878]">{copy.eyebrow}</p>
               <h1 className="mt-4 max-w-sm text-4xl font-extrabold leading-[1.3] tracking-[-.04em]">
                 {rtl ? "خطوة واضحة نحو فهم عملك." : "A clearer step toward understanding your business."}
               </h1>
               <p className="mt-5 max-w-sm text-sm leading-8 text-[#c4ccda]">
-                {rtl ? "دفترُك يبدأ بتجربة بسيطة وآمنة، ثم ينمو مع احتياجات مشروعك." : "Daftaro starts with a simple, secure experience and grows with your business."}
+                {rtl ? "دفترك يبدأ بتجربة بسيطة وآمنة، ثم ينمو مع احتياجات مشروعك." : "Daftarik starts with a simple, secure experience and grows with your business."}
               </p>
             </div>
             <div className="relative mt-12 flex items-center gap-2 text-xs text-[#c4ccda]">
@@ -202,7 +202,7 @@ export default function AuthClient({ mode }: { mode: Mode }) {
                   <span className="absolute inset-[5px] rounded-[8px] border border-[#d6b878]/70" />
                   <span className="relative text-xl font-semibold text-[#d6b878]">د</span>
                 </span>
-                <span className="text-xl font-extrabold tracking-[-.04em]">Daftaro</span>
+                <span className="text-xl font-extrabold tracking-[-.04em]">{rtl ? "دفترك" : "Daftarik"}</span>
               </div>
             </div>
             <p className="text-xs font-bold tracking-[.12em] text-[#9a804a]">{copy.eyebrow}</p>

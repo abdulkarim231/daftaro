@@ -64,7 +64,7 @@ const INTERVALS: { ms: IntervalMs; ar: string; en: string }[] = [
 const CHART_COLORS = ["#167b70", "#c09b50", "#536f9a", "#a45149", "#786aa5", "#56876b"];
 const COPY = {
   ar: {
-    brand: "دفترُك", privacy: "بياناتك خاصة وآمنة", title: "صورة نشاطك المالية", source: "مصدر البيانات",
+    brand: "دفترك", privacy: "بياناتك خاصة وآمنة", title: "صورة نشاطك المالية", source: "مصدر البيانات",
     subtitle: "نظرة واضحة على ما كسبته وما أنفقته، خطوة بخطوة.", profile: "ملف النشاط",
     transactions: "الحركات", products: "المنتجات", orders: "الطلبات", customers: "العملاء", signOut: "تسجيل الخروج", signingOut: "جارٍ الخروج…",
     language: "EN", refresh: "تحديث", refreshed: "آخر تحديث", print: "حفظ كـ PDF",
@@ -86,7 +86,7 @@ const COPY = {
     securityNote: "الأرقام من سجل حركاتك فقط، وكل عملة مستقلة دون تحويل.",
   },
   en: {
-    brand: "Daftaro", privacy: "Private to your account", title: "Your business, at a glance", source: "Data source",
+    brand: "Daftarik", privacy: "Private to your account", title: "Your business, at a glance", source: "Data source",
     subtitle: "A clear view of what came in and what went out.", profile: "Business profile",
     transactions: "Transactions", products: "Products", orders: "Orders", customers: "Customers", signOut: "Sign out", signingOut: "Signing out…",
     language: "العربية", refresh: "Refresh", refreshed: "Last refreshed", print: "Save as PDF",
@@ -501,7 +501,7 @@ export default function DashboardClient() {
               <section className={`overflow-hidden rounded-[22px] border ${theme.panel}`} data-testid="trend-chart-card">
                 <div className="flex items-center justify-between gap-3 px-5 pb-1 pt-5 sm:px-6">
                   <div><div className="mb-2 flex items-center gap-2 text-[#167b70]"><Activity size={16} /><span className="text-[10px] font-extrabold tracking-[.12em]">{rtl ? "اتجاه الحركة" : "CASH FLOW"}</span></div><h2 className="text-base font-extrabold">{text.trend}</h2></div>
-                  {!loading && trend.length > 0 && <button type="button" onClick={() => downloadCsv("daftaro-income-expenses.csv", [[rtl ? "الفترة" : "Period", `${text.income} (${currency})`, `${text.expenses} (${currency})`], ...trend.map((point) => [point.key, milliToDatabaseValue(point.incomeMilli), milliToDatabaseValue(point.expensesMilli)])])} title={text.csvTrend} aria-label={text.csvTrend} className={`print:hidden grid size-9 shrink-0 place-items-center rounded-xl transition hover:bg-black/5 ${theme.muted}`} data-testid="button-export-trend"><Download size={16} /></button>}
+                  {!loading && trend.length > 0 && <button type="button" onClick={() => downloadCsv("daftarik-income-expenses.csv", [[rtl ? "الفترة" : "Period", `${text.income} (${currency})`, `${text.expenses} (${currency})`], ...trend.map((point) => [point.key, milliToDatabaseValue(point.incomeMilli), milliToDatabaseValue(point.expensesMilli)])])} title={text.csvTrend} aria-label={text.csvTrend} className={`print:hidden grid size-9 shrink-0 place-items-center rounded-xl transition hover:bg-black/5 ${theme.muted}`} data-testid="button-export-trend"><Download size={16} /></button>}
                 </div>
                 <div className="px-2 pb-5 pt-4 sm:px-4">
                   {loading ? <div className={`h-[290px] animate-pulse rounded-xl ${isDark ? "bg-white/5" : "bg-[#f0f3ef]"}`} data-testid="trend-skeleton" /> : trend.length === 0 || !currentTransactions.some((item) => item.currency_code === currency) ? <div className={`grid h-[290px] place-items-center px-6 text-center text-sm ${theme.muted}`} data-testid="trend-empty">{text.noChart}</div> : (
@@ -524,7 +524,7 @@ export default function DashboardClient() {
               <section className={`overflow-hidden rounded-[22px] border ${theme.panel}`} data-testid="category-chart-card">
                 <div className="flex items-center justify-between gap-3 px-5 pb-1 pt-5 sm:px-6">
                   <div><div className="mb-2 text-[10px] font-extrabold tracking-[.12em] text-[#927a46]">{rtl ? "مواضع الإنفاق" : "WHERE IT GOES"}</div><h2 className="text-base font-extrabold">{text.categories}</h2></div>
-                  {!loading && categories.length > 0 && <button type="button" onClick={() => downloadCsv("daftaro-expenses-by-category.csv", [[text.category, text.amount, text.currency], ...categories.map((item) => [categoryLabel(item.category), milliToDatabaseValue(item.amountMilli), currency])])} title={text.csvCategories} aria-label={text.csvCategories} className={`print:hidden grid size-9 shrink-0 place-items-center rounded-xl transition hover:bg-black/5 ${theme.muted}`} data-testid="button-export-categories"><Download size={16} /></button>}
+                  {!loading && categories.length > 0 && <button type="button" onClick={() => downloadCsv("daftarik-expenses-by-category.csv", [[text.category, text.amount, text.currency], ...categories.map((item) => [categoryLabel(item.category), milliToDatabaseValue(item.amountMilli), currency])])} title={text.csvCategories} aria-label={text.csvCategories} className={`print:hidden grid size-9 shrink-0 place-items-center rounded-xl transition hover:bg-black/5 ${theme.muted}`} data-testid="button-export-categories"><Download size={16} /></button>}
                 </div>
                 <div className="px-3 pb-5 pt-3 sm:px-5">
                   {loading ? <div className={`h-[290px] animate-pulse rounded-xl ${isDark ? "bg-white/5" : "bg-[#f0f3ef]"}`} data-testid="category-skeleton" /> : categories.length === 0 ? <div className={`grid h-[290px] place-items-center px-6 text-center text-sm ${theme.muted}`} data-testid="category-empty">{text.noCategories}</div> : (

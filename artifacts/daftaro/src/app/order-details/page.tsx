@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import OrdersUI from "../orders-ui";
 
 export const metadata: Metadata = {
-  title: "Order details | Daftaro",
-  description: "Review and update an order in Daftaro.",
+  title: "Order details | Daftarik",
+  description: "Review and update an order in Daftarik.",
 };
 
 export default function OrderDetailsPage() {

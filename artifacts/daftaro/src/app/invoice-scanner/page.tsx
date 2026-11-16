@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import InvoiceScannerClient from "./invoice-scanner-client";
 
 export const metadata: Metadata = {
-  title: "Invoice reader — Daftaro",
+  title: "Invoice reader — Daftarik",
   description: "Read supplier invoices, review their details, and update stock safely.",
   robots: { index: false, follow: false },
 };

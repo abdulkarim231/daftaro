@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import OrdersUI from "../orders-ui";
 
 export const metadata: Metadata = {
-  title: "Customer invoice | Daftaro",
-  description: "View a Daftaro customer invoice.",
+  title: "Customer invoice | Daftarik",
+  description: "View a Daftarik customer invoice.",
   robots: { index: false, follow: false },
 };
 

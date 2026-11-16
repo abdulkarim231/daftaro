@@ -36,7 +36,7 @@ export async function completeWithOpenRouter(messages: OpenRouterMessage[]) {
         headers: {
           Authorization: `Bearer ${apiKey}`,
           "Content-Type": "application/json",
-          "X-Title": "Daftaro",
+          "X-Title": "Daftarik",
         },
         body: JSON.stringify({
           model: candidate,

@@ -1,3 +1,5 @@
 <svg width="180" height="180" viewBox="0 0 180 180" fill="none" xmlns="http://www.w3.org/2000/svg">
-<rect width="180" height="180" rx="36" fill="#FF3C00"/>
+  <rect width="180" height="180" rx="36" fill="#101B30"/>
+  <rect x="22" y="22" width="136" height="136" rx="30" stroke="#D6B878" stroke-width="5"/>
+  <text x="90" y="124" fill="#D6B878" font-family="Arial, sans-serif" font-size="94" font-weight="600" text-anchor="middle">د</text>
 </svg>

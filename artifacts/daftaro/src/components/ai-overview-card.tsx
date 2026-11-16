@@ -67,7 +67,7 @@ export function AiOverviewCard({
         <div className="flex items-start gap-3">
           <span className="grid size-10 shrink-0 place-items-center rounded-[13px] bg-[#e9f4f0] text-[#167b70]"><Sparkles size={18} /></span>
           <div>
-            <h2 className="font-extrabold">{ar ? "مساعد دفترُك الذكي" : "Daftaro AI insights"}</h2>
+            <h2 className="font-extrabold">{ar ? "مساعد دفترك الذكي" : "Daftarik AI insights"}</h2>
             <p className={`mt-1 max-w-2xl text-xs leading-5 ${mutedClass}`}>
               {ar ? "تحليل مستقل لآخر ٣٠ يومًا، يعتمد على بياناتك الفعلية ويفصل سجل الحركات عن الطلبات." : "A private last-30-day review of real data, keeping ledger entries separate from orders."}
             </p>

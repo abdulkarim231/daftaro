@@ -97,7 +97,7 @@ export function localizeAiError(message: string, language: AiLanguage) {
   if (/saved reports.*migration|saved reports.*not set up/i.test(message)) return "تحتاج التقارير المحفوظة إلى تطبيق تحديث قاعدة Supabase أولًا.";
   if (/report sharing.*migration|sharing storage.*not ready/i.test(message)) return "تحتاج مشاركة التقارير إلى تطبيق تحديث قاعدة Supabase أولًا.";
   if (/share.*(expired|revoked|invalid|not found)/i.test(message)) return "انتهت صلاحية الرابط أو تم إلغاؤه. اطلب رابطًا جديدًا من صاحب التقرير.";
-  if (/sign in|session is invalid/i.test(message)) return "سجّل الدخول مجددًا لاستخدام مساعد دفترُك.";
+  if (/sign in|session is invalid/i.test(message)) return "سجّل الدخول مجددًا لاستخدام مساعد دفترك.";
   if (/too many|rate limit/i.test(message)) return "تجاوزت عدد الطلبات المسموح. حاول مجددًا بعد دقيقة.";
   if (/busy|rate-limited|temporarily/i.test(message)) return "النماذج المجانية مشغولة الآن. حاول مجددًا بعد قليل.";
   if (/timed out/i.test(message)) return "انتهت مهلة طلب الذكاء الاصطناعي. حاول مجددًا.";
@@ -110,7 +110,7 @@ export function localizeAiError(message: string, language: AiLanguage) {
 
 async function authenticatedFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
   const { data, error } = await supabase.auth.getSession();
-  if (error || !data.session?.access_token) throw new Error("Sign in again to use Daftaro AI.");
+  if (error || !data.session?.access_token) throw new Error("Sign in again to use Daftarik AI.");
   const response = await fetch(path, {
     ...init,
     headers: {
@@ -120,7 +120,7 @@ async function authenticatedFetch<T>(path: string, init: RequestInit = {}): Prom
     },
   });
   const body = await response.json().catch(() => null) as { error?: string } | null;
-  if (!response.ok) throw new Error(body?.error || "Daftaro AI could not complete this request.");
+  if (!response.ok) throw new Error(body?.error || "Daftarik AI could not complete this request.");
   return body as T;
 }
 

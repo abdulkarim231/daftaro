@@ -53,7 +53,7 @@ function supabaseForToken(token: string) {
 async function authenticatedClient(req: Request, res: Response) {
   const token = bearerToken(req);
   if (!token) {
-    res.status(401).json({ error: "Sign in to use Daftaro AI." });
+    res.status(401).json({ error: "Sign in to use Daftarik AI." });
     return null;
   }
   const client = supabaseForToken(token);
@@ -216,7 +216,7 @@ function makeAnalysisPrompt(analysis: ReturnType<typeof buildAiAnalysis>, langua
     {
       role: "system" as const,
       content: [
-        "You are Daftaro, a careful business analyst for a small business owner.",
+        "You are Daftarik, a careful business analyst for a small business owner.",
         `Write every human-readable string, including the summary and every recommendation, entirely in ${language === "ar" ? "Arabic" : "English"}. Do not switch languages. Keep currency codes and proper names unchanged.`,
         "Use only facts and evidence IDs in the supplied JSON. Never invent figures, causes, products, or periods.",
         "Ledger income and order revenue are separate. Never combine them. Cancelled orders are excluded. Paid, unpaid/pending, and failed/refunded totals are distinct.",
@@ -306,7 +306,7 @@ router.get("/ai/analysis", async (req: Request, res: Response): Promise<void> =>
       res.status(error.status).json({ error: error.message });
       return;
     }
-    req.log.error({ reason: error instanceof Error ? error.message : "unknown" }, "Daftaro AI analysis failed");
+    req.log.error({ reason: error instanceof Error ? error.message : "unknown" }, "Daftarik AI analysis failed");
     res.status(502).json({ error: "Could not prepare this analysis. Check your data and try again." });
   }
 });
@@ -345,7 +345,7 @@ router.post("/ai/chat", async (req: Request, res: Response): Promise<void> => {
       {
         role: "system",
         content: [
-          "You are Ask Daftaro, a business assistant.",
+          "You are Ask Daftarik, a business assistant.",
           `Reply in ${language === "ar" ? "Arabic" : "English"}.`,
           "Answer only from the verified facts JSON included below. Do not invent or calculate amounts yourself; use exact values as supplied.",
           "Answer directly first, then explain which verified figures or products support the answer, then give up to three practical next steps when useful.",
@@ -374,7 +374,7 @@ router.post("/ai/chat", async (req: Request, res: Response): Promise<void> => {
       res.status(error.status).json({ error: error.message });
       return;
     }
-    req.log.error({ reason: error instanceof Error ? error.message : "unknown" }, "Daftaro AI chat failed");
+    req.log.error({ reason: error instanceof Error ? error.message : "unknown" }, "Daftarik AI chat failed");
     res.status(502).json({ error: "Could not answer from your business data. Try again." });
   }
 });
@@ -387,7 +387,7 @@ router.get("/ai/chat-history", async (req: Request, res: Response): Promise<void
     const { data, error } = await auth.client.rpc("get_ai_chat_history");
     if (error) {
       if (chatHistoryStorageNotReady(error.code)) {
-        res.status(503).json({ error: "Chat history storage is not set up. Apply the Daftaro chat-history migration." });
+        res.status(503).json({ error: "Chat history storage is not set up. Apply the Daftarik chat-history migration." });
         return;
       }
       throw error;
@@ -406,7 +406,7 @@ router.get("/ai/chat-history", async (req: Request, res: Response): Promise<void
       : null;
     res.json({ messages, updatedAt });
   } catch (error) {
-    req.log.error({ reason: error instanceof Error ? error.message : "unknown" }, "Daftaro chat history load failed");
+    req.log.error({ reason: error instanceof Error ? error.message : "unknown" }, "Daftarik chat history load failed");
     res.status(502).json({ error: "Could not load your chat history. Try again." });
   }
 });
@@ -424,14 +424,14 @@ router.put("/ai/chat-history", async (req: Request, res: Response): Promise<void
     const { data, error } = await auth.client.rpc("save_ai_chat_history", { p_messages: messages });
     if (error) {
       if (chatHistoryStorageNotReady(error.code)) {
-        res.status(503).json({ error: "Chat history storage is not set up. Apply the Daftaro chat-history migration." });
+        res.status(503).json({ error: "Chat history storage is not set up. Apply the Daftarik chat-history migration." });
         return;
       }
       throw error;
     }
     res.json({ saved: true, updatedAt: data });
   } catch (error) {
-    req.log.error({ reason: error instanceof Error ? error.message : "unknown" }, "Daftaro chat history save failed");
+    req.log.error({ reason: error instanceof Error ? error.message : "unknown" }, "Daftarik chat history save failed");
     res.status(502).json({ error: "Could not save your chat history. Try again." });
   }
 });
@@ -444,14 +444,14 @@ router.delete("/ai/chat-history", async (req: Request, res: Response): Promise<v
     const { error } = await auth.client.rpc("clear_ai_chat_history");
     if (error) {
       if (chatHistoryStorageNotReady(error.code)) {
-        res.status(503).json({ error: "Chat history storage is not set up. Apply the Daftaro chat-history migration." });
+        res.status(503).json({ error: "Chat history storage is not set up. Apply the Daftarik chat-history migration." });
         return;
       }
       throw error;
     }
     res.json({ cleared: true });
   } catch (error) {
-    req.log.error({ reason: error instanceof Error ? error.message : "unknown" }, "Daftaro chat history clear failed");
+    req.log.error({ reason: error instanceof Error ? error.message : "unknown" }, "Daftarik chat history clear failed");
     res.status(502).json({ error: "Could not clear your chat history. Try again." });
   }
 });
@@ -488,7 +488,7 @@ router.post("/ai/pricing", async (req: Request, res: Response): Promise<void> =>
         {
           role: "system",
           content: [
-            "You are Daftaro's pricing advisor.",
+            "You are Daftarik's pricing advisor.",
             `Reply in ${language === "ar" ? "Arabic" : "English"}.`,
             "Explain only the verified values provided. Do not invent market prices, customer behavior, or extra costs.",
             "All profit and margin arithmetic has already been calculated by the server. Do not recalculate or change it.",
@@ -511,7 +511,7 @@ router.post("/ai/pricing", async (req: Request, res: Response): Promise<void> =>
       res.status(400).json({ error: error.message });
       return;
     }
-    req.log.error({ reason: error instanceof Error ? error.message : "unknown" }, "Daftaro AI pricing advice failed");
+    req.log.error({ reason: error instanceof Error ? error.message : "unknown" }, "Daftarik AI pricing advice failed");
     res.status(502).json({ error: "Could not prepare pricing advice. Check the price and try again." });
   }
 });
@@ -568,7 +568,7 @@ router.post("/ai/report-shares", async (req: Request, res: Response): Promise<vo
     });
     if (error) {
       if (reportSharingNotReady(error.code)) {
-        res.status(503).json({ error: "Report sharing storage is not ready. Apply the Daftaro report-sharing migration." });
+        res.status(503).json({ error: "Report sharing storage is not ready. Apply the Daftarik report-sharing migration." });
         return;
       }
       req.log.error({ code: error.code }, "Could not create a shared AI report");
@@ -603,7 +603,7 @@ router.get("/ai/report-shares", async (req: Request, res: Response): Promise<voi
     const { data, error } = await auth.client.rpc("list_ai_report_shares");
     if (error) {
       if (reportSharingNotReady(error.code)) {
-        res.status(503).json({ error: "Report sharing storage is not ready. Apply the Daftaro report-sharing migration." });
+        res.status(503).json({ error: "Report sharing storage is not ready. Apply the Daftarik report-sharing migration." });
         return;
       }
       req.log.error({ code: error.code }, "Could not list shared AI reports");
@@ -632,7 +632,7 @@ router.post("/ai/report-shares/:shareId/revoke", async (req: Request, res: Respo
     const { data, error } = await auth.client.rpc("revoke_ai_report_share", { p_share_id: rawId });
     if (error) {
       if (reportSharingNotReady(error.code)) {
-        res.status(503).json({ error: "Report sharing storage is not ready. Apply the Daftaro report-sharing migration." });
+        res.status(503).json({ error: "Report sharing storage is not ready. Apply the Daftarik report-sharing migration." });
         return;
       }
       req.log.error({ code: error.code }, "Could not revoke a shared AI report");
@@ -681,7 +681,7 @@ router.post("/ai/report-shares/:shareId/view", async (req: Request, res: Respons
     });
     if (error) {
       if (reportSharingNotReady(error.code)) {
-        res.status(503).json({ error: "Report sharing storage is not ready. Apply the Daftaro report-sharing migration." });
+        res.status(503).json({ error: "Report sharing storage is not ready. Apply the Daftarik report-sharing migration." });
         return;
       }
       req.log.warn({ code: error.code }, "Shared AI report lookup failed");
@@ -743,7 +743,7 @@ router.post("/ai/saved-reports", async (req: Request, res: Response): Promise<vo
     });
     if (error) {
       if (savedReportStorageNotReady(error.code)) {
-        res.status(503).json({ error: "Saved reports are not set up. Apply the Daftaro saved-reports migration." });
+        res.status(503).json({ error: "Saved reports are not set up. Apply the Daftarik saved-reports migration." });
         return;
       }
       req.log.error({ code: error.code }, "Could not save an AI report");
@@ -788,7 +788,7 @@ router.get("/ai/saved-reports", async (req: Request, res: Response): Promise<voi
     });
     if (error) {
       if (savedReportStorageNotReady(error.code)) {
-        res.status(503).json({ error: "Saved reports are not set up. Apply the Daftaro saved-reports migration." });
+        res.status(503).json({ error: "Saved reports are not set up. Apply the Daftarik saved-reports migration." });
         return;
       }
       req.log.error({ code: error.code }, "Could not list saved AI reports");
@@ -819,7 +819,7 @@ router.get("/ai/saved-reports/:savedReportId", async (req: Request, res: Respons
     const { data, error } = await auth.client.rpc("get_ai_saved_report", { p_saved_report_id: rawId });
     if (error) {
       if (savedReportStorageNotReady(error.code)) {
-        res.status(503).json({ error: "Saved reports are not set up. Apply the Daftaro saved-reports migration." });
+        res.status(503).json({ error: "Saved reports are not set up. Apply the Daftarik saved-reports migration." });
         return;
       }
       req.log.error({ code: error.code }, "Could not load a saved AI report");
@@ -872,7 +872,7 @@ router.delete("/ai/saved-reports/:savedReportId", async (req: Request, res: Resp
     const { data, error } = await auth.client.rpc("delete_ai_saved_report", { p_saved_report_id: rawId });
     if (error) {
       if (savedReportStorageNotReady(error.code)) {
-        res.status(503).json({ error: "Saved reports are not set up. Apply the Daftaro saved-reports migration." });
+        res.status(503).json({ error: "Saved reports are not set up. Apply the Daftarik saved-reports migration." });
         return;
       }
       req.log.error({ code: error.code }, "Could not delete a saved AI report");

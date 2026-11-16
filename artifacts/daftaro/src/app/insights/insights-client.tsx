@@ -44,7 +44,7 @@ function parseSignedMilli(value: string | null) {
 
 const COPY = {
   ar: {
-    title: "رؤى دفترُك الذكية", subtitle: "تفسير وتحليل يستند إلى بيانات نشاطك الفعلية.",
+    title: "رؤى دفترك الذكية", subtitle: "تفسير وتحليل يستند إلى بيانات نشاطك الفعلية.",
     analyze: "تحديث التحليل", period: "الفترة", periods: { "7d": "٧ أيام", "30d": "٣٠ يومًا", "90d": "٩٠ يومًا" },
     currency: "العملة", loading: "جارٍ تحليل بياناتك…", error: "تعذر إعداد التحليل. أعد المحاولة.",
     financial: "ملخص مالي", income: "الدخل المسجل", expense: "المصروفات المسجلة", net: "صافي السجل", margin: "هامش السجل",
@@ -60,7 +60,7 @@ const COPY = {
     unitCost: "تكلفة الوحدة", currentProfit: "الربح الحالي", proposedProfit: "الربح المقترح",
     currentMargin: "الهامش الحالي", proposedMargin: "الهامش المقترح", changePerUnit: "التغير لكل وحدة",
     simulationOnly: "هذه محاكاة فقط؛ لن يتغير السعر المحفوظ.", noProducts: "أضف منتجًا لتجربة التسعير.",
-    assistant: "اسأل دفترُك", assistantHint: "اسأل عن الأرباح، المصروفات، المنتجات أو المخزون. الإجابات تعتمد على ملخص آمن لبيانات حسابك.",
+    assistant: "اسأل دفترك", assistantHint: "اسأل عن الأرباح، المصروفات، المنتجات أو المخزون. الإجابات تعتمد على ملخص آمن لبيانات حسابك.",
     placeholder: "مثال: ما المنتجات التي تحتاج إعادة شراء؟", send: "إرسال", sending: "جارٍ الرد…",
     noChat: "ابدأ بسؤال عن بيانات نشاطك.", clear: "مسح المحادثة", localHistory: "يُحفظ سجل المحادثة في حسابك ويظهر على أجهزتك الأخرى.",
     historyLoading: "جارٍ تحميل سجل محادثاتك…", historyRetry: "إعادة المحاولة",
@@ -84,7 +84,7 @@ const COPY = {
     printReport: "طباعة أو حفظ PDF",
   },
   en: {
-    title: "Daftaro AI insights", subtitle: "Analysis and explanations based on your actual business data.",
+    title: "Daftarik AI insights", subtitle: "Analysis and explanations based on your actual business data.",
     analyze: "Refresh analysis", period: "Period", periods: { "7d": "7 days", "30d": "30 days", "90d": "90 days" },
     currency: "Currency", loading: "Analyzing your data…", error: "Analysis couldn't be prepared. Try again.",
     financial: "Financial summary", income: "Ledger income", expense: "Ledger expenses", net: "Ledger net", margin: "Ledger margin",
@@ -100,7 +100,7 @@ const COPY = {
     unitCost: "Unit cost", currentProfit: "Current profit", proposedProfit: "Proposed profit",
     currentMargin: "Current margin", proposedMargin: "Proposed margin", changePerUnit: "Change per unit",
     simulationOnly: "This is a simulation; the saved price will not change.", noProducts: "Add a product to try pricing.",
-    assistant: "Ask Daftaro", assistantHint: "Ask about profit, expenses, products, or stock. Answers use a private summary of your account data.",
+    assistant: "Ask Daftarik", assistantHint: "Ask about profit, expenses, products, or stock. Answers use a private summary of your account data.",
     placeholder: "For example: Which products should I restock?", send: "Send", sending: "Thinking…",
     noChat: "Ask a question about your business data.", clear: "Clear chat", localHistory: "Chat history is saved to your account and available on your other devices.",
     historyLoading: "Loading your chat history…", historyRetry: "Retry",

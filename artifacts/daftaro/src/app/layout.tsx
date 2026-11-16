@@ -2,11 +2,11 @@ import type { Metadata } from "next";
 import "../index.css";
 
 export const metadata: Metadata = {
-  title: "Daftaro — Financial clarity for small businesses",
+  title: "دفترك | Daftarik — Financial clarity for small businesses",
   description:
     "A clearer view of income, expenses, and real profit for small businesses in Kuwait and the Gulf.",
   openGraph: {
-    title: "Daftaro — Financial clarity for small businesses",
+    title: "دفترك | Daftarik — Financial clarity for small businesses",
     description:
       "A clearer view of income, expenses, and real profit for small businesses in Kuwait and the Gulf.",
     type: "website",

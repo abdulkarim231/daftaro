@@ -232,7 +232,7 @@ router.post("/invoice-scanner/scan", async (req: Request, res: Response): Promis
     }
   }
   if (!reserveDailyRequest()) {
-    sendError(res, 429, "Daftaro has reached its daily OCR safety limit. Try again tomorrow.");
+    sendError(res, 429, "Daftarik has reached its daily OCR safety limit. Try again tomorrow.");
     return;
   }
 

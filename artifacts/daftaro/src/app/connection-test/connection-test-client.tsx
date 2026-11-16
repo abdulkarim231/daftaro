@@ -97,7 +97,7 @@ export default function ConnectionTestClient() {
     >
       <section className="mx-auto max-w-2xl rounded-[28px] border border-[#e5e9ed] bg-white p-6 shadow-[0_20px_70px_rgba(16,27,48,.08)] sm:p-10">
         <p className="text-xs font-bold tracking-wide text-[#927a46]">
-          Daftaro · إعداد الاتصال
+          Daftarik · إعداد الاتصال
         </p>
         <h1 className="mt-3 text-3xl font-extrabold tracking-tight sm:text-4xl">
           فحص اتصال Supabase

@@ -17,7 +17,7 @@ type AppHeaderProps = {
 
 const labels = {
   ar: {
-    brand: "دفترُك",
+    brand: "دفترك",
     privacy: "بياناتك خاصة وآمنة",
     transactions: "الحركات",
     invoiceScanner: "قراءة الفواتير",
@@ -33,7 +33,7 @@ const labels = {
     switchLanguage: "Switch to English",
   },
   en: {
-    brand: "Daftaro",
+    brand: "Daftarik",
     privacy: "Private to your account",
     transactions: "Transactions",
     invoiceScanner: "Invoice reader",

@@ -34,7 +34,7 @@ type Screen = "customers" | "orders" | "create-order" | "order-details" | "invoi
 
 const C = {
   ar: {
-    brand: "دفترُك", customers: "العملاء", orders: "الطلبات", dashboard: "لوحة التحكم",
+    brand: "دفترك", customers: "العملاء", orders: "الطلبات", dashboard: "لوحة التحكم",
     transactions: "الحركات", addCustomer: "عميل جديد",
     titleCustomers: "عملاؤك، في مكان واحد", subCustomers: "احتفظ بتفاصيل العملاء وتابع طلباتهم بسهولة.",
     titleOrders: "الطلبات", subOrders: "تابع كل طلب ومدفوعاته من لحظة التأكيد حتى التسليم.",
@@ -89,7 +89,7 @@ const C = {
     dateFrom: "من تاريخ", dateTo: "إلى تاريخ", clear: "مسح", lineItems: "تفاصيل المنتجات",
   },
   en: {
-    brand: "Daftaro", customers: "Customers", orders: "Orders", dashboard: "Dashboard",
+    brand: "Daftarik", customers: "Customers", orders: "Orders", dashboard: "Dashboard",
     transactions: "Transactions", addCustomer: "New customer",
     titleCustomers: "Your customers, together", subCustomers: "Keep customer details close and their order history easy to follow.",
     titleOrders: "Orders", subOrders: "Follow every order and payment from confirmation through delivery.",

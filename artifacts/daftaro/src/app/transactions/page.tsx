@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import TransactionsClient from "./transactions-client";
 
 export const metadata: Metadata = {
-  title: "Transactions — Daftaro",
+  title: "Transactions — Daftarik",
   description: "Record and manage your business income and expenses.",
   robots: { index: false, follow: false },
 };

@@ -80,7 +80,7 @@ const categoryOptions: { value: Category; ar: string; en: string }[] = [
 
 const copy = {
   ar: {
-    brand: "دفترُك",
+    brand: "دفترك",
     section: "سجل النشاط",
     title: "الحركات المالية",
     subtitle: "سجّل ما يدخل إلى نشاطك وما يُنفق عليه، في مكان واحد واضح.",
@@ -154,7 +154,7 @@ const copy = {
     summaryCurrencyNote: "تُعرض كل عملة منفصلة دون تحويل بينها.",
   },
   en: {
-    brand: "Daftaro",
+    brand: "Daftarik",
     section: "BUSINESS LEDGER",
     title: "Transactions",
     subtitle: "Keep the money coming in and going out of your business in one clear place.",

@@ -66,7 +66,7 @@ const emptyDraft: ProductDraft = {
 
 const copy = {
   ar: {
-    brand: "دفترُك", section: "إدارة المنتجات", title: "منتجاتك، وتكلفتها الحقيقية",
+    brand: "دفترك", section: "إدارة المنتجات", title: "منتجاتك، وتكلفتها الحقيقية",
     subtitle: "أضف تكلفة كل وحدة لتعرف ما يتبقى لك من كل عملية بيع.",
     add: "إضافة منتج", products: "قائمة المنتجات", currencyNote: "المبالغ بعملة نشاطك الأساسية",
     private: "بياناتك خاصة بحسابك", loading: "جارٍ تحميل المنتجات…",
@@ -104,7 +104,7 @@ const copy = {
     direction: "rtl",
   },
   en: {
-    brand: "Daftaro", section: "PRODUCT MANAGEMENT", title: "Products, with their real cost",
+    brand: "Daftarik", section: "PRODUCT MANAGEMENT", title: "Products, with their real cost",
     subtitle: "Add the cost of each unit to understand what remains from every sale.",
     add: "Add product", products: "Your products", currencyNote: "Amounts use your business currency",
     private: "Your data is private to your account", loading: "Loading your products…",

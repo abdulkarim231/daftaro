@@ -3,7 +3,7 @@ import type { PrintableAiReportData } from "../lib/printable-ai-report";
 
 const COPY = {
   ar: {
-    title: "تقرير رؤى دفترُك",
+    title: "تقرير رؤى دفترك",
     period: "الفترة المشمولة",
     currency: "العملة",
     financial: "الملخص المالي",
@@ -27,7 +27,7 @@ const COPY = {
     shippingExpenses: "مصروفات الشحن المسجلة في الفترة",
     evidence: "الأرقام والأدلة المحسوبة",
     calculations: "ملاحظات الحساب",
-    aiExplanation: "تفسير دفترُك",
+    aiExplanation: "تفسير دفترك",
     recommendations: "التوصيات",
     paidUnits: "وحدات مدفوعة",
     revenue: "الإيراد المدفوع",
@@ -48,7 +48,7 @@ const COPY = {
     restockNote: "تقديرات إعادة التخزين تعتمد على الطلبات المدفوعة؛ ولا تظهر كمية محددة عند عدم كفاية البيانات.",
   },
   en: {
-    title: "Daftaro business insights report",
+    title: "Daftarik business insights report",
     period: "Reporting period",
     currency: "Currency",
     financial: "Financial summary",
@@ -72,7 +72,7 @@ const COPY = {
     shippingExpenses: "Shipping expenses recorded in the selected period",
     evidence: "Calculated figures and evidence",
     calculations: "Calculation notes",
-    aiExplanation: "Daftaro's explanation",
+    aiExplanation: "Daftarik's explanation",
     recommendations: "Recommendations",
     paidUnits: "paid units",
     revenue: "Paid revenue",
@@ -160,7 +160,7 @@ export function PrintableAiReport({
   return (
     <article className="print-only mx-auto max-w-[900px] px-2 py-5 text-[#172639]" dir={language === "ar" ? "rtl" : "ltr"} data-print-report data-testid="ai-print-report">
       <header className="border-b-2 border-[#167b70] pb-5">
-        <p className="text-xs font-bold tracking-wide text-[#167b70]">DAFTARO</p>
+        <p className="text-xs font-bold tracking-wide text-[#167b70]">DAFTARIK</p>
         <h1 className="mt-2 text-3xl font-extrabold">{copy.title}</h1>
         <div className="mt-4 flex flex-wrap gap-x-7 gap-y-2 text-sm">
           <p><b>{copy.period}:</b> {periodLabel} · <span dir="ltr">{report.from} — {report.to}</span></p>
@@ -261,7 +261,7 @@ export function PrintableAiReport({
           <li>{copy.restockNote}</li>
         </ul>
       </section>
-      <footer className="mt-8 border-t border-slate-300 pt-3 text-[10px] text-slate-500">DAFTARO · {report.currencyCode} · <span dir="ltr">{report.from} — {report.to}</span></footer>
+      <footer className="mt-8 border-t border-slate-300 pt-3 text-[10px] text-slate-500">DAFTARIK · {report.currencyCode} · <span dir="ltr">{report.from} — {report.to}</span></footer>
     </article>
   );
 }

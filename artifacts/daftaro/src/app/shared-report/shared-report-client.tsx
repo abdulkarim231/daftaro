@@ -10,7 +10,7 @@ import { useAppLanguage } from "../../hooks/use-app-language";
 const COPY = {
   ar: {
     loading: "جارٍ فتح التقرير…",
-    title: "تقرير مشترك من دفترُك",
+    title: "تقرير مشترك من دفترك",
     readOnly: "عرض للقراءة فقط",
     privacy: "هذا الرابط يفتح تقريرًا محددًا فقط. لا يتيح الوصول إلى الحساب أو بيانات العملاء.",
     print: "طباعة أو حفظ PDF",
@@ -22,7 +22,7 @@ const COPY = {
   },
   en: {
     loading: "Opening the report…",
-    title: "A shared Daftaro report",
+    title: "A shared Daftarik report",
     readOnly: "Read-only view",
     privacy: "This link opens one report only. It does not provide account or customer-data access.",
     print: "Print or save PDF",
@@ -91,7 +91,7 @@ export default function SharedReportClient() {
       <div className="screen-only mx-auto max-w-[960px]">
         <header className="flex flex-wrap items-center justify-between gap-4 rounded-[22px] border border-[#e3e8e5] bg-[#fffefa] px-5 py-4">
           <div>
-            <p className="text-[10px] font-extrabold tracking-[.16em] text-[#167b70]">DAFTARO</p>
+            <p className="text-[10px] font-extrabold tracking-[.16em] text-[#167b70]">DAFTARIK</p>
             <h1 className="mt-1 text-xl font-extrabold">{text.title}</h1>
           </div>
           <button
