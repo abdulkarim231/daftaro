@@ -24,7 +24,10 @@ export type AiAnalysis = {
     current: { income: string; expenses: string; netProfit: string; marginPercent: string | null };
     previous: { income: string; expenses: string; netProfit: string; marginPercent: string | null };
     changes: { incomePercent: string | null; expensesPercent: string | null; netProfitPercent: string | null; marginPoints: string | null };
+    monthToDateChanges: { income: string; expenses: string; netProfit: string };
     expenseCategories: Array<{ category: string; amount: string }>;
+    expenseCategoryChanges: Array<{ category: string; current: string; previous: string; change: string }>;
+    monthExpenseCategoryChanges: Array<{ category: string; current: string; previous: string; change: string }>;
     paidOrderTotal: string;
     unpaidOrPendingOrderTotal: string;
     failedOrRefundedOrderTotal: string;
@@ -34,6 +37,8 @@ export type AiAnalysis = {
   productPerformance: {
     bestSellers: Record<AiPeriod, Array<{ productId: string; name: string; paidUnits: number; paidRevenue: string }>>;
     mostProfitable: Array<{ productId: string; name: string; estimatedProfit: string; marginPercent: string | null; paidUnits: number }>;
+    unitEconomics: Array<{ productId: string; name: string; currentPrice: string; unitCost: string; unitProfit: string; marginPercent: string | null }>;
+    unitEconomicsTotalCount: number;
     slowMoving: Array<{ productId: string; name: string; previousPaidUnits: number; currentPaidUnits: number }>;
     noSales: Array<{ productId: string; name: string; daysSinceAdded: number }>;
     costBasisNote: string;

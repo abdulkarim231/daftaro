@@ -78,7 +78,10 @@ export type AiAnalysis = {
       netProfitPercent: string | null;
       marginPoints: string | null;
     };
+    monthToDateChanges: { income: string; expenses: string; netProfit: string };
     expenseCategories: Array<{ category: string; amount: string }>;
+    expenseCategoryChanges: Array<{ category: string; current: string; previous: string; change: string }>;
+    monthExpenseCategoryChanges: Array<{ category: string; current: string; previous: string; change: string }>;
     paidOrderTotal: string;
     unpaidOrPendingOrderTotal: string;
     failedOrRefundedOrderTotal: string;
@@ -88,6 +91,8 @@ export type AiAnalysis = {
   productPerformance: {
     bestSellers: Record<AiPeriod, Array<{ productId: string; name: string; paidUnits: number; paidRevenue: string }>>;
     mostProfitable: Array<{ productId: string; name: string; estimatedProfit: string; marginPercent: string | null; paidUnits: number }>;
+    unitEconomics: Array<{ productId: string; name: string; currentPrice: string; unitCost: string; unitProfit: string; marginPercent: string | null }>;
+    unitEconomicsTotalCount: number;
     slowMoving: Array<{ productId: string; name: string; previousPaidUnits: number; currentPaidUnits: number }>;
     noSales: Array<{ productId: string; name: string; daysSinceAdded: number }>;
     costBasisNote: string;
@@ -203,6 +208,33 @@ function sumTransactions(
       .sort((a, b) => a[1] === b[1] ? a[0].localeCompare(b[0]) : a[1] > b[1] ? -1 : 1)
       .map(([category, value]) => ({ category, amount: value })),
   };
+}
+
+function compareExpenseCategories(
+  current: Array<{ category: string; amount: bigint }>,
+  previous: Array<{ category: string; amount: bigint }>,
+) {
+  const currentByCategory = new Map(current.map((entry) => [entry.category, entry.amount]));
+  const previousByCategory = new Map(previous.map((entry) => [entry.category, entry.amount]));
+  const categories = new Set([...currentByCategory.keys(), ...previousByCategory.keys()]);
+  return [...categories]
+    .map((category) => {
+      const currentAmount = currentByCategory.get(category) ?? 0n;
+      const previousAmount = previousByCategory.get(category) ?? 0n;
+      const change = currentAmount - previousAmount;
+      return {
+        category,
+        current: amount(currentAmount),
+        previous: amount(previousAmount),
+        change: amount(change),
+        changeMagnitude: change < 0n ? -change : change,
+      };
+    })
+    .sort((a, b) => a.changeMagnitude === b.changeMagnitude
+      ? a.category.localeCompare(b.category)
+      : a.changeMagnitude > b.changeMagnitude ? -1 : 1)
+    .slice(0, 8)
+    .map(({ changeMagnitude: _changeMagnitude, ...entry }) => entry);
 }
 
 function changePercent(current: bigint, previous: bigint): bigint | null {
@@ -331,6 +363,13 @@ export function buildAiAnalysis(input: AiAnalysisInput): AiAnalysis {
   const priorMonthFrom = `${priorMonthTo.slice(0, 7)}-01`;
   const monthCurrent = sumTransactions(input.transactions, monthFrom, input.today, input.currencyCode);
   const monthPrevious = sumTransactions(input.transactions, priorMonthFrom, priorMonthTo, input.currencyCode);
+  const monthToDateChanges = {
+    income: amount(monthCurrent.income - monthPrevious.income),
+    expenses: amount(monthCurrent.expenses - monthPrevious.expenses),
+    netProfit: amount(monthCurrent.net - monthPrevious.net),
+  };
+  const expenseCategoryChanges = compareExpenseCategories(current.categories, previous.categories);
+  const monthExpenseCategoryChanges = compareExpenseCategories(monthCurrent.categories, monthPrevious.categories);
   const expenseShipping = input.transactions.reduce((total, transaction) => {
     if (
       transaction.transaction_type !== "expense"
@@ -407,6 +446,35 @@ export function buildAiAnalysis(input: AiAnalysisInput): AiAnalysis {
     })
     .filter((product) => product.unitProfit < 0n && product.margin !== null)
     .slice(0, 8);
+
+  const unitEconomicsCandidates = input.products
+    .filter((product) => product.currency_code === input.currencyCode)
+    .map((product) => {
+      const currentPrice = parseMilli(product.selling_price);
+      const unitCost = productCost(product);
+      const unitProfit = currentPrice - unitCost;
+      const unitMargin = margin(unitProfit, currentPrice);
+      return {
+        productId: product.id,
+        name: product.name,
+        currentPrice: amount(currentPrice),
+        unitCost: amount(unitCost),
+        unitProfit: amount(unitProfit),
+        marginPercent: percent(unitMargin),
+        marginValue: unitMargin,
+      };
+    })
+    .sort((a, b) => {
+      if (a.marginValue === null) return b.marginValue === null ? a.name.localeCompare(b.name) : 1;
+      if (b.marginValue === null) return -1;
+      return a.marginValue === b.marginValue
+        ? a.name.localeCompare(b.name)
+        : a.marginValue < b.marginValue ? -1 : 1;
+    });
+  const unitEconomicsTotalCount = unitEconomicsCandidates.length;
+  const unitEconomics = unitEconomicsCandidates
+    .slice(0, 50)
+    .map(({ marginValue: _marginValue, ...product }) => product);
 
   const slowMoving = input.products
     .filter((product) => product.currency_code === input.currencyCode && product.created_at.slice(0, 10) <= addDays(today, -30))
@@ -547,7 +615,10 @@ export function buildAiAnalysis(input: AiAnalysisInput): AiAnalysis {
         netProfitPercent: percent(changePercent(current.net, previous.net)),
         marginPoints: current.margin === null || previous.margin === null ? null : percent(current.margin - previous.margin),
       },
+      monthToDateChanges,
       expenseCategories: current.categories.slice(0, 8).map((entry) => ({ category: entry.category, amount: amount(entry.amount) })),
+      expenseCategoryChanges,
+      monthExpenseCategoryChanges,
       paidOrderTotal: amount(lastPeriodOrderFacts.paidOrderTotal),
       unpaidOrPendingOrderTotal: amount(lastPeriodOrderFacts.unpaidOrderTotal),
       failedOrRefundedOrderTotal: amount(lastPeriodOrderFacts.failedOrRefundedOrderTotal),
@@ -557,6 +628,8 @@ export function buildAiAnalysis(input: AiAnalysisInput): AiAnalysis {
     productPerformance: {
       bestSellers: productPeriods,
       mostProfitable,
+      unitEconomics,
+      unitEconomicsTotalCount,
       slowMoving,
       noSales,
       costBasisNote: "Profit estimates use current saved unit costs and paid order revenue after proportionally allocated discounts; general expenses and shipping are not assigned to products.",
@@ -586,7 +659,10 @@ export function buildChatFacts(analysis: AiAnalysis) {
     ledgerChanges: analysis.financial.changes,
     monthToDate: analysis.monthToDate,
     previousMonth: analysis.previousMonth,
+    monthToDateChanges: analysis.financial.monthToDateChanges,
     expenseCategories: analysis.financial.expenseCategories,
+    expenseCategoryChanges: analysis.financial.expenseCategoryChanges,
+    monthExpenseCategoryChanges: analysis.financial.monthExpenseCategoryChanges,
     paidOrderRevenue: analysis.financial.paidOrderTotal,
     unpaidOrPendingOrderRevenue: analysis.financial.unpaidOrPendingOrderTotal,
     failedOrRefundedOrderRevenue: analysis.financial.failedOrRefundedOrderTotal,
@@ -594,6 +670,8 @@ export function buildChatFacts(analysis: AiAnalysis) {
     bestSellers30d: analysis.productPerformance.bestSellers["30d"],
     bestSellers90d: analysis.productPerformance.bestSellers["90d"],
     mostProfitableProducts: analysis.productPerformance.mostProfitable,
+    productUnitEconomics: analysis.productPerformance.unitEconomics,
+    productUnitEconomicsTotalCount: analysis.productPerformance.unitEconomicsTotalCount,
     slowMovingProducts: analysis.productPerformance.slowMoving,
     noPaidSalesLast30Days: analysis.productPerformance.noSales,
     restocking: analysis.restocking,
@@ -604,6 +682,9 @@ export function buildChatFacts(analysis: AiAnalysis) {
       "Failed and refunded orders are separate from unpaid, pending, and paid totals.",
       "Product profit uses current saved costs, not historical cost snapshots.",
       "General operating and shipping expenses are not allocated to individual products.",
+      "Unpaid or pending order revenue is the total of orders with those statuses, not a verified outstanding balance after partial payments.",
+      "Product unit economics compare current saved prices and costs; they are not market-price benchmarks.",
+      "Product unit economics are sorted by lowest margin and may be capped at 50 products.",
     ],
   };
 }

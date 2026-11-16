@@ -120,7 +120,50 @@ test("chat facts exclude customer details and include explicit accounting rules"
   assert.equal("customer" in facts, false);
   assert.equal(facts.paidOrderRevenue, "19.000");
   assert.equal(facts.monthToDate.from, "2026-03-01");
+  assert.equal(facts.productUnitEconomics[0].currentPrice, "10.000");
+  assert.equal(facts.productUnitEconomics[0].unitCost, "6.000");
+  assert.equal(facts.productUnitEconomics[0].unitProfit, "4.000");
+  assert.equal(facts.productUnitEconomics[0].marginPercent, "40.00");
   assert.ok(facts.dataRules.some((rule) => rule.includes("never added together")));
+});
+
+test("provides month and period expense-category changes for grounded explanations", () => {
+  const result = analysis({
+    transactions: [
+      { transaction_type: "income", amount: "20.000", currency_code: "KWD", transaction_date: "2026-03-10", category: null },
+      { transaction_type: "expense", amount: "5.000", currency_code: "KWD", transaction_date: "2026-03-10", category: "shipping" },
+      { transaction_type: "expense", amount: "1.000", currency_code: "KWD", transaction_date: "2026-02-05", category: "shipping" },
+    ],
+  });
+  const expectedCategoryChange = [{ category: "shipping", current: "5.000", previous: "1.000", change: "4.000" }];
+  assert.deepEqual(result.financial.expenseCategoryChanges, expectedCategoryChange);
+  assert.deepEqual(result.financial.monthExpenseCategoryChanges, expectedCategoryChange);
+  assert.deepEqual(result.financial.monthToDateChanges, {
+    income: "20.000",
+    expenses: "4.000",
+    netProfit: "16.000",
+  });
+  const facts = buildChatFacts(result);
+  assert.deepEqual(facts.monthExpenseCategoryChanges, expectedCategoryChange);
+  assert.deepEqual(facts.monthToDateChanges, result.financial.monthToDateChanges);
+});
+
+test("includes unit economics for unsold products so chat can review their prices", () => {
+  const lossProduct = product({
+    id: "00000000-0000-4000-8000-000000000002",
+    name: "Low margin product",
+    selling_price: "5.000",
+  });
+  const facts = buildChatFacts(analysis({ products: [product(), lossProduct] }));
+  assert.equal(facts.productUnitEconomicsTotalCount, 2);
+  assert.deepEqual(facts.productUnitEconomics[0], {
+    productId: lossProduct.id,
+    name: "Low margin product",
+    currentPrice: "5.000",
+    unitCost: "6.000",
+    unitProfit: "-1.000",
+    marginPercent: "-20.00",
+  });
 });
 
 test("pricing advice calculates exact profit and margin from trusted product costs", () => {
