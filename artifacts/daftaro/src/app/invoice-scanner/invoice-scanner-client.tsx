@@ -34,6 +34,7 @@ import {
   getInvoiceScannerStatus,
   savePurchaseInvoice,
   scanInvoice,
+  type ExtractedInvoice,
   type ExtractedInvoiceItem,
   type InvoiceDraft,
   type InvoiceItemDraft,
@@ -114,6 +115,16 @@ const copy = {
     manualMode: "إدخال يدوي",
     reviewTitle: "راجع بيانات الفاتورة",
     reviewText: "قد يخطئ OCR في الأرقام أو الأسماء. صحّحها قبل الحفظ؛ لا يتغير المخزون حتى تؤكد.",
+    reviewGuide: "راجع حالة كل حقل قبل الحفظ. المستخرج قد يحتاج تصحيحًا، وغير المكتشف أدخله من الفاتورة.",
+    reviewDetected: "مستخرج · راجعه",
+    reviewMissing: "غير مكتشف · أدخله",
+    reviewManual: "مدخل يدويًا · راجعه",
+    reviewEdited: "تغيّر بعد القراءة · راجعه",
+    reviewCalculated: "محسوب من البنود · تحقّق",
+    confidenceHigh: "قراءة عالية الثقة · راجعها",
+    confidenceMedium: "قراءة متوسطة الثقة · راجعها",
+    confidenceLow: "قراءة منخفضة الثقة · راجعها",
+    confidenceMissing: "بيانات البند غير مكتشفة",
     invoiceNumber: "رقم الفاتورة",
     invoiceDate: "تاريخ الفاتورة",
     supplier: "اسم المورد",
@@ -207,7 +218,7 @@ const copy = {
     loading: "جارٍ تجهيز الصفحة…",
     cancel: "إلغاء",
     confirmTitle: "تأكيد حفظ الفاتورة",
-    confirmText: "سيُحفظ سجل الفاتورة، وستُضاف كميات البنود المرتبطة للمخزون. لن يتغير سعر البيع.",
+    confirmText: "بعد مراجعتك للبيانات، سيُحفظ سجل الفاتورة وتُضاف كميات البنود المحددة للمخزون عند التأكيد فقط. لن يتغير سعر البيع.",
     confirm: "تأكيد الحفظ",
     privateInfo: "بيانات الفاتورة خاصة بحسابك",
     manualExtraction: "أدخل البنود يدويًا",
@@ -245,6 +256,16 @@ const copy = {
     manualMode: "Manual entry",
     reviewTitle: "Review invoice details",
     reviewText: "OCR can misread numbers and names. Correct them before saving; stock does not change until you confirm.",
+    reviewGuide: "Check each field before saving. Extracted values may need correction; enter anything not detected from the invoice.",
+    reviewDetected: "Extracted · review",
+    reviewMissing: "Not detected · enter it",
+    reviewManual: "Entered manually · review",
+    reviewEdited: "Changed after reading · review",
+    reviewCalculated: "Calculated from items · check",
+    confidenceHigh: "High-confidence read · review",
+    confidenceMedium: "Medium-confidence read · review",
+    confidenceLow: "Low-confidence read · review",
+    confidenceMissing: "Item details not detected",
     invoiceNumber: "Invoice number",
     invoiceDate: "Invoice date",
     supplier: "Supplier name",
@@ -338,7 +359,7 @@ const copy = {
     loading: "Preparing the page…",
     cancel: "Cancel",
     confirmTitle: "Confirm invoice save",
-    confirmText: "The invoice will be saved and linked item quantities added to stock. Selling prices will not change.",
+    confirmText: "After you review the details, the invoice record and selected stock quantities will be saved only when you confirm. Selling prices will not change.",
     confirm: "Confirm save",
     privateInfo: "Invoice data is private to your account",
     manualExtraction: "Enter items manually",
@@ -349,6 +370,120 @@ const fieldClass =
   "w-full rounded-[13px] border border-[#dfe5e8] bg-[#fffefa] px-3.5 py-3 text-sm text-[#1d2c3d] outline-none transition placeholder:text-[#a3acb5] focus:border-[#168d78] focus:ring-4 focus:ring-[#168d78]/10 disabled:cursor-not-allowed disabled:opacity-60";
 const labelClass = "mb-1.5 block text-xs font-bold text-[#556376]";
 const panelClass = "rounded-[22px] border border-[#e5e8e2] bg-[#fffefa] shadow-[0_12px_40px_rgba(28,42,54,0.04)]";
+
+type InvoiceReviewStatus = "detected" | "missing" | "manual" | "edited" | "calculated";
+type InvoiceItemConfidence = "high" | "medium" | "low" | "missing";
+
+function getInvoiceReviewStatus(
+  sourceValue: string | number | null | undefined,
+  currentValue: string,
+  options: { amount?: boolean; calculated?: boolean; changed?: boolean } = {},
+): InvoiceReviewStatus {
+  const normalize = (value: string | number) => options.amount
+    ? normalizeAmountInput(String(value))
+    : String(value).trim().toLocaleLowerCase();
+  const sourceText = sourceValue === null || sourceValue === undefined ? "" : String(sourceValue).trim();
+  const currentText = currentValue.trim();
+  if (options.changed && currentText) return "edited";
+  if (sourceText && currentText) {
+    return normalize(sourceText) === normalize(currentText) ? "detected" : "edited";
+  }
+  if (options.calculated && currentText) return "calculated";
+  if (!currentText) return "missing";
+  if (options.amount && parseAmountToMilli(normalizeAmountInput(currentText)) === 0n) return "missing";
+  return "manual";
+}
+
+function InvoiceReviewBadge({
+  status,
+  language,
+  field,
+}: {
+  status: InvoiceReviewStatus;
+  language: AppLanguage;
+  field: string;
+}) {
+  const labels = {
+    ar: {
+      detected: copy.ar.reviewDetected,
+      missing: copy.ar.reviewMissing,
+      manual: copy.ar.reviewManual,
+      edited: copy.ar.reviewEdited,
+      calculated: copy.ar.reviewCalculated,
+    },
+    en: {
+      detected: copy.en.reviewDetected,
+      missing: copy.en.reviewMissing,
+      manual: copy.en.reviewManual,
+      edited: copy.en.reviewEdited,
+      calculated: copy.en.reviewCalculated,
+    },
+  }[language];
+  const styles: Record<InvoiceReviewStatus, string> = {
+    detected: "bg-[#e7f3ef] text-[#216c60]",
+    missing: "bg-[#fff0ed] text-[#9a4b40]",
+    manual: "bg-[#fff6e5] text-[#87652d]",
+    edited: "bg-[#fff6e5] text-[#87652d]",
+    calculated: "bg-[#edf2f8] text-[#526b88]",
+  };
+  return (
+    <span
+      className={`inline-flex rounded-full px-2 py-0.5 text-[9px] font-bold leading-4 ${styles[status]}`}
+      data-testid={`invoice-review-${field}-${status}`}
+      data-review-status={status}
+    >
+      {labels[status]}
+    </span>
+  );
+}
+
+function InvoiceConfidenceBadge({
+  confidence,
+  language,
+  field,
+}: {
+  confidence: InvoiceItemConfidence;
+  language: AppLanguage;
+  field: string;
+}) {
+  const labels: Record<InvoiceItemConfidence, string> = {
+    high: language === "ar" ? copy.ar.confidenceHigh : copy.en.confidenceHigh,
+    medium: language === "ar" ? copy.ar.confidenceMedium : copy.en.confidenceMedium,
+    low: language === "ar" ? copy.ar.confidenceLow : copy.en.confidenceLow,
+    missing: language === "ar" ? copy.ar.confidenceMissing : copy.en.confidenceMissing,
+  };
+  const style = confidence === "high"
+    ? "bg-[#e7f3ef] text-[#216c60]"
+    : confidence === "medium"
+      ? "bg-[#fff6e5] text-[#87652d]"
+      : confidence === "low"
+        ? "bg-[#fff0ed] text-[#9a4b40]"
+        : "bg-[#fff0ed] text-[#9a4b40]";
+  return (
+    <span className={`inline-flex rounded-full px-2 py-1 text-[9px] font-bold leading-4 ${style}`} data-testid={`invoice-item-confidence-${field}`} data-confidence={confidence}>
+      {labels[confidence]}
+    </span>
+  );
+}
+
+function InvoiceReviewFieldLabel({
+  label,
+  status,
+  language,
+  field,
+}: {
+  label: string;
+  status: InvoiceReviewStatus;
+  language: AppLanguage;
+  field: string;
+}) {
+  return (
+    <span className={`${labelClass} flex flex-wrap items-center justify-between gap-1.5`}>
+      <span>{label}</span>
+      <InvoiceReviewBadge status={status} language={language} field={field} />
+    </span>
+  );
+}
 
 function isValidIsoDate(value: string) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
@@ -650,6 +785,8 @@ export default function InvoiceScannerClient() {
   const [scanning, setScanning] = useState(false);
   const [scanEngine, setScanEngine] = useState<InvoiceScanEngine>(2);
   const [draft, setDraft] = useState<(InvoiceDraft & { ocrEngine: InvoiceSaveEngine }) | null>(null);
+  const [extractedInvoice, setExtractedInvoice] = useState<ExtractedInvoice | null>(null);
+  const [editedFields, setEditedFields] = useState<Set<string>>(() => new Set());
   const [extractedText, setExtractedText] = useState("");
   const [parseWarnings, setParseWarnings] = useState<string[]>([]);
   const [reviewOpen, setReviewOpen] = useState(false);
@@ -767,12 +904,22 @@ export default function InvoiceScannerClient() {
       || subtotalBalances === false
       || finalTotalBalances === false),
   );
+  const subtotalCalculatedFromItems = Boolean(
+    extractedInvoice
+    && !extractedInvoice.subtotal
+    && extractedInvoice.items.some((item) => item.lineTotal || amountProduct(item.quantity ?? "", item.unitPurchasePrice ?? "")),
+  );
+  const totalCalculatedFromFields = Boolean(extractedInvoice && !extractedInvoice.total && draft?.total);
 
   async function selectFile(selected: File | undefined) {
     if (!selected) return;
     setNotice(null);
     setFileError("");
     setFileInfo(null);
+    setExtractedText("");
+    setExtractedInvoice(null);
+    setEditedFields(new Set());
+    setParseWarnings([]);
     setFile(selected);
     setReviewOpen(false);
     setDraft(null);
@@ -833,6 +980,8 @@ export default function InvoiceScannerClient() {
     setNotice(null);
     setFileError("");
     setExtractedText("");
+    setExtractedInvoice(null);
+    setEditedFields(new Set());
     setParseWarnings([]);
     setDraft(blankInvoice(currency));
     setReviewOpen(true);
@@ -850,6 +999,8 @@ export default function InvoiceScannerClient() {
     try {
       const result = await scanInvoice(file, scanEngine);
       setExtractedText(result.extractedText);
+      setExtractedInvoice(result.invoice);
+      setEditedFields(new Set());
       const warnings = [...(result.invoice?.warnings ?? [])];
       if (!result.invoice?.currencyCode) warnings.push(text.currencyNotDetected);
       if (result.parseWarning) {
@@ -873,10 +1024,19 @@ export default function InvoiceScannerClient() {
   }
 
   function updateHeader(field: keyof Omit<InvoiceDraft, "items">, value: string) {
+    setEditedFields((current) => new Set(current).add(String(field)));
     setDraft((current) => current ? { ...current, [field]: value } : current);
   }
 
   function updateItem(index: number, field: keyof InvoiceItemDraft, value: string | boolean | null) {
+    setEditedFields((current) => {
+      const next = new Set(current).add(`item-${index}-${String(field)}`);
+      if (["quantity", "unitPurchasePrice", "lineTotal", "discount"].includes(String(field))) {
+        next.add("subtotal");
+        next.add("total");
+      }
+      return next;
+    });
     setDraft((current) => {
       if (!current) return current;
       const items = [...current.items];
@@ -932,6 +1092,12 @@ export default function InvoiceScannerClient() {
   }
 
   function calculateTotals() {
+    setEditedFields((current) => {
+      const next = new Set(current);
+      next.delete("subtotal");
+      next.delete("total");
+      return next;
+    });
     setDraft((current) => {
       if (!current) return current;
       const items = current.items.map((item) => ({
@@ -1040,6 +1206,8 @@ export default function InvoiceScannerClient() {
       setFile(null);
       setFileInfo(null);
       setExtractedText("");
+      setExtractedInvoice(null);
+      setEditedFields(new Set());
       setReviewOpen(false);
       setParseWarnings([]);
       try {
@@ -1082,12 +1250,27 @@ export default function InvoiceScannerClient() {
     }
   }
 
+  function reviewLabel(
+    label: string,
+    source: string | number | null | undefined,
+    current: string,
+    field: string,
+    options: { amount?: boolean; calculated?: boolean } = {},
+  ) {
+    const status = getInvoiceReviewStatus(source, current, { ...options, changed: editedFields.has(field) });
+    return extractedText
+      ? <InvoiceReviewFieldLabel label={label} status={status} language={language} field={field} />
+      : <span className={labelClass}>{label}</span>;
+  }
+
   function resetScanner() {
     setFile(null);
     setFileInfo(null);
     setFileError("");
     setDraft(null);
     setReviewOpen(false);
+    setExtractedInvoice(null);
+    setEditedFields(new Set());
     setExtractedText("");
     setParseWarnings([]);
     setSavedResult(null);
@@ -1405,6 +1588,12 @@ export default function InvoiceScannerClient() {
                 </ul>
               </div>
             )}
+            {extractedText && (
+              <div role="note" className="flex items-start gap-2 rounded-xl border border-[#dfe8e1] bg-[#f5f8f3] px-4 py-3 text-xs leading-5 text-[#536477]" data-testid="notice-invoice-review-guide">
+                <ShieldCheck size={15} className="mt-0.5 shrink-0 text-[#167b70]" />
+                <span>{text.reviewGuide}</span>
+              </div>
+            )}
             {draft.currencyCode && draft.currencyCode !== currency && (
               <div className="rounded-2xl border border-[#eddfba] bg-[#fff9e9] px-4 py-3 text-sm leading-6 text-[#7a6333]" data-testid="warning-invoice-currency">{text.currencyWarning}</div>
             )}
@@ -1430,18 +1619,18 @@ export default function InvoiceScannerClient() {
               </details>
             )}
               <div className="invoice-fields grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <label><span className={labelClass}>{text.invoiceNumber}</span><input value={draft.invoiceNumber} onChange={(event) => updateHeader("invoiceNumber", event.target.value)} className={fieldClass} maxLength={100} data-testid="input-invoice-number" /></label>
-              <label><span className={labelClass}>{text.invoiceDate}</span><input type="date" value={draft.invoiceDate} onChange={(event) => updateHeader("invoiceDate", event.target.value)} className={fieldClass} data-testid="input-invoice-date" /></label>
-              <label><span className={labelClass}>{text.supplier}</span><input value={draft.supplierName} onChange={(event) => updateHeader("supplierName", event.target.value)} className={fieldClass} maxLength={160} data-testid="input-supplier-name" /></label>
-              <label><span className={labelClass}>{text.currency}</span><select value={draft.currencyCode} onChange={(event) => updateHeader("currencyCode", event.target.value)} className={fieldClass} data-testid="select-invoice-currency"><option value="" disabled>{text.chooseCurrency}</option>{CURRENCIES.map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
-              <label><span className={labelClass}>{text.supplierPhone}</span><input value={draft.supplierPhone} onChange={(event) => updateHeader("supplierPhone", event.target.value)} className={fieldClass} maxLength={40} data-testid="input-supplier-phone" /></label>
-              <label><span className={labelClass}>{text.supplierEmail}</span><input type="email" value={draft.supplierEmail} onChange={(event) => updateHeader("supplierEmail", event.target.value)} className={fieldClass} maxLength={254} data-testid="input-supplier-email" /></label>
-              <label><span className={labelClass}>{text.subtotal}</span><input inputMode="decimal" value={draft.subtotal} onChange={(event) => updateHeader("subtotal", event.target.value)} className={`${fieldClass} ${subtotalBalances === false ? "border-[#c45a4d] bg-[#fff3ef] text-[#90453b]" : ""}`} aria-invalid={subtotalBalances === false} data-testid="input-invoice-subtotal" /></label>
-              <label><span className={labelClass}>{text.discount}</span><input inputMode="decimal" value={draft.discount} onChange={(event) => updateHeader("discount", event.target.value)} className={fieldClass} data-testid="input-invoice-discount" /></label>
-              <label><span className={labelClass}>{text.tax}</span><input inputMode="decimal" value={draft.tax} onChange={(event) => updateHeader("tax", event.target.value)} className={fieldClass} data-testid="input-invoice-tax" /></label>
-              <label><span className={labelClass}>{text.shipping}</span><input inputMode="decimal" value={draft.shippingFee} onChange={(event) => updateHeader("shippingFee", event.target.value)} className={fieldClass} data-testid="input-invoice-shipping" /></label>
-              <label><span className={labelClass}>{text.otherCharges}</span><input inputMode="decimal" value={draft.otherCharges} onChange={(event) => updateHeader("otherCharges", event.target.value)} className={fieldClass} data-testid="input-invoice-other-charges" /></label>
-              <label><span className={labelClass}>{text.total}</span><input inputMode="decimal" value={draft.total} onChange={(event) => updateHeader("total", event.target.value)} className={`${fieldClass} border-[#c8d9d2] font-extrabold ${finalTotalBalances === false ? "border-[#c45a4d] bg-[#fff3ef] text-[#90453b]" : ""}`} aria-invalid={finalTotalBalances === false} data-testid="input-invoice-total" /></label>
+              <label>{reviewLabel(text.invoiceNumber, extractedInvoice?.invoiceNumber, draft.invoiceNumber, "invoiceNumber")}<input value={draft.invoiceNumber} onChange={(event) => updateHeader("invoiceNumber", event.target.value)} className={fieldClass} maxLength={100} data-testid="input-invoice-number" /></label>
+              <label>{reviewLabel(text.invoiceDate, extractedInvoice?.invoiceDate, draft.invoiceDate, "invoiceDate")}<input type="date" value={draft.invoiceDate} onChange={(event) => updateHeader("invoiceDate", event.target.value)} className={fieldClass} data-testid="input-invoice-date" /></label>
+              <label>{reviewLabel(text.supplier, extractedInvoice?.supplierName, draft.supplierName, "supplierName")}<input value={draft.supplierName} onChange={(event) => updateHeader("supplierName", event.target.value)} className={fieldClass} maxLength={160} data-testid="input-supplier-name" /></label>
+              <label>{reviewLabel(text.currency, extractedInvoice?.currencyCode, draft.currencyCode, "currencyCode")}<select value={draft.currencyCode} onChange={(event) => updateHeader("currencyCode", event.target.value)} className={fieldClass} data-testid="select-invoice-currency"><option value="" disabled>{text.chooseCurrency}</option>{CURRENCIES.map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
+              <label>{reviewLabel(text.supplierPhone, extractedInvoice?.supplierPhone, draft.supplierPhone, "supplierPhone")}<input value={draft.supplierPhone} onChange={(event) => updateHeader("supplierPhone", event.target.value)} className={fieldClass} maxLength={40} data-testid="input-supplier-phone" /></label>
+              <label>{reviewLabel(text.supplierEmail, extractedInvoice?.supplierEmail, draft.supplierEmail, "supplierEmail")}<input type="email" value={draft.supplierEmail} onChange={(event) => updateHeader("supplierEmail", event.target.value)} className={fieldClass} maxLength={254} data-testid="input-supplier-email" /></label>
+              <label>{reviewLabel(text.subtotal, extractedInvoice?.subtotal, draft.subtotal, "subtotal", { amount: true, calculated: subtotalCalculatedFromItems })}<input inputMode="decimal" value={draft.subtotal} onChange={(event) => updateHeader("subtotal", event.target.value)} className={`${fieldClass} ${subtotalBalances === false ? "border-[#c45a4d] bg-[#fff3ef] text-[#90453b]" : ""}`} aria-invalid={subtotalBalances === false} data-testid="input-invoice-subtotal" /></label>
+              <label>{reviewLabel(text.discount, extractedInvoice?.discount, draft.discount, "discount", { amount: true })}<input inputMode="decimal" value={draft.discount} onChange={(event) => updateHeader("discount", event.target.value)} className={fieldClass} data-testid="input-invoice-discount" /></label>
+              <label>{reviewLabel(text.tax, extractedInvoice?.tax, draft.tax, "tax", { amount: true })}<input inputMode="decimal" value={draft.tax} onChange={(event) => updateHeader("tax", event.target.value)} className={fieldClass} data-testid="input-invoice-tax" /></label>
+              <label>{reviewLabel(text.shipping, extractedInvoice?.shippingFee, draft.shippingFee, "shippingFee", { amount: true })}<input inputMode="decimal" value={draft.shippingFee} onChange={(event) => updateHeader("shippingFee", event.target.value)} className={fieldClass} data-testid="input-invoice-shipping" /></label>
+              <label>{reviewLabel(text.otherCharges, extractedInvoice?.otherCharges, draft.otherCharges, "otherCharges", { amount: true })}<input inputMode="decimal" value={draft.otherCharges} onChange={(event) => updateHeader("otherCharges", event.target.value)} className={fieldClass} data-testid="input-invoice-other-charges" /></label>
+              <label>{reviewLabel(text.total, extractedInvoice?.total, draft.total, "total", { amount: true, calculated: totalCalculatedFromFields })}<input inputMode="decimal" value={draft.total} onChange={(event) => updateHeader("total", event.target.value)} className={`${fieldClass} border-[#c8d9d2] font-extrabold ${finalTotalBalances === false ? "border-[#c45a4d] bg-[#fff3ef] text-[#90453b]" : ""}`} aria-invalid={finalTotalBalances === false} data-testid="input-invoice-total" /></label>
             </div>
 
             <div className="space-y-4 border-t border-[#e8ebe6] pt-5">
@@ -1461,18 +1650,22 @@ export default function InvoiceScannerClient() {
                 const suggestions = getProductSuggestions(item.productName, products);
                 const quantityMilli = parseAmountToMilli(normalizeAmountInput(item.quantity));
                 const matchedProduct = products.find((product) => product.id === item.productId);
+                const sourceItem = extractedInvoice?.items[index];
                 const lineBalances = invoiceLineAmountsBalance(item);
                 return (
                   <article key={`invoice-item-${index}`} className="invoice-line-card rounded-2xl border border-[#e1e7df] bg-[#fbfcfa] p-4 sm:p-5" data-testid={`card-invoice-item-${index}`}>
                     <div className="mb-4 flex items-center justify-between gap-3">
-                      <p className="text-sm font-extrabold text-[#425166]">{text.items} {index + 1}</p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-sm font-extrabold text-[#425166]">{text.items} {index + 1}</p>
+                        {extractedText && <InvoiceConfidenceBadge confidence={item.confidence} language={language} field={`item-${index}`} />}
+                      </div>
                       <button type="button" onClick={() => removeItem(index)} disabled={draft.items.length <= 1} className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-bold text-[#9b5650] hover:bg-[#fff0ed] disabled:opacity-40" data-testid={`button-remove-invoice-item-${index}`}>
                         <Trash2 size={14} /> {text.removeItem}
                       </button>
                     </div>
                     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                       <label className="sm:col-span-2">
-                        <span className={labelClass}>{text.itemName}</span>
+                        {reviewLabel(text.itemName, sourceItem?.productName, item.productName, `item-${index}-productName`)}
                         <input value={item.productName} onChange={(event) => updateItem(index, "productName", event.target.value)} className={fieldClass} maxLength={160} data-testid={`input-invoice-item-name-${index}`} />
                         {suggestions.length > 0 && item.action !== "match" && (
                           <span className="mt-2 flex flex-wrap gap-1.5" data-testid={`suggestions-invoice-products-${index}`}>
@@ -1484,13 +1677,13 @@ export default function InvoiceScannerClient() {
                           </span>
                         )}
                       </label>
-                      <label><span className={labelClass}>{text.sku}</span><input value={item.sku} onChange={(event) => updateItem(index, "sku", event.target.value)} className={fieldClass} maxLength={100} data-testid={`input-invoice-item-sku-${index}`} /></label>
-                      <label><span className={labelClass}>{text.description}</span><input value={item.description} onChange={(event) => updateItem(index, "description", event.target.value)} className={fieldClass} maxLength={500} data-testid={`input-invoice-item-description-${index}`} /></label>
-                      <label><span className={labelClass}>{text.quantity}</span><input inputMode="decimal" value={item.quantity} onChange={(event) => updateItem(index, "quantity", event.target.value)} className={fieldClass} data-testid={`input-invoice-item-quantity-${index}`} /></label>
-                      <label><span className={labelClass}>{text.unit}</span><input value={item.unitOfMeasure} onChange={(event) => updateItem(index, "unitOfMeasure", event.target.value)} className={fieldClass} maxLength={32} data-testid={`input-invoice-item-unit-${index}`} /></label>
-                      <label><span className={labelClass}>{text.purchasePrice}</span><input inputMode="decimal" value={item.unitPurchasePrice} onChange={(event) => updateItem(index, "unitPurchasePrice", event.target.value)} className={fieldClass} data-testid={`input-invoice-item-price-${index}`} /></label>
-                       <label><span className={labelClass}>{text.lineTotal}</span><input inputMode="decimal" value={item.lineTotal} onChange={(event) => updateItem(index, "lineTotal", event.target.value)} className={`${fieldClass} ${lineBalances === false ? "border-[#c45a4d] bg-[#fff3ef] text-[#90453b]" : ""}`} aria-invalid={lineBalances === false} data-testid={`input-invoice-item-total-${index}`} /></label>
-                      <label><span className={labelClass}>{text.lineDiscount}</span><input inputMode="decimal" value={item.discount} onChange={(event) => updateItem(index, "discount", event.target.value)} className={fieldClass} data-testid={`input-invoice-item-discount-${index}`} /></label>
+                      <label>{reviewLabel(text.sku, sourceItem?.sku, item.sku, `item-${index}-sku`)}<input value={item.sku} onChange={(event) => updateItem(index, "sku", event.target.value)} className={fieldClass} maxLength={100} data-testid={`input-invoice-item-sku-${index}`} /></label>
+                      <label>{reviewLabel(text.description, sourceItem?.description, item.description, `item-${index}-description`)}<input value={item.description} onChange={(event) => updateItem(index, "description", event.target.value)} className={fieldClass} maxLength={500} data-testid={`input-invoice-item-description-${index}`} /></label>
+                      <label>{reviewLabel(text.quantity, sourceItem?.quantity, item.quantity, `item-${index}-quantity`, { amount: true })}<input inputMode="decimal" value={item.quantity} onChange={(event) => updateItem(index, "quantity", event.target.value)} className={fieldClass} data-testid={`input-invoice-item-quantity-${index}`} /></label>
+                      <label>{reviewLabel(text.unit, sourceItem?.unitOfMeasure, item.unitOfMeasure, `item-${index}-unitOfMeasure`)}<input value={item.unitOfMeasure} onChange={(event) => updateItem(index, "unitOfMeasure", event.target.value)} className={fieldClass} maxLength={32} data-testid={`input-invoice-item-unit-${index}`} /></label>
+                      <label>{reviewLabel(text.purchasePrice, sourceItem?.unitPurchasePrice, item.unitPurchasePrice, `item-${index}-unitPurchasePrice`, { amount: true })}<input inputMode="decimal" value={item.unitPurchasePrice} onChange={(event) => updateItem(index, "unitPurchasePrice", event.target.value)} className={fieldClass} data-testid={`input-invoice-item-price-${index}`} /></label>
+                      <label>{reviewLabel(text.lineTotal, sourceItem?.lineTotal, item.lineTotal, `item-${index}-lineTotal`, { amount: true })}<input inputMode="decimal" value={item.lineTotal} onChange={(event) => updateItem(index, "lineTotal", event.target.value)} className={`${fieldClass} ${lineBalances === false ? "border-[#c45a4d] bg-[#fff3ef] text-[#90453b]" : ""}`} aria-invalid={lineBalances === false} data-testid={`input-invoice-item-total-${index}`} /></label>
+                      <label>{reviewLabel(text.lineDiscount, sourceItem?.discount, item.discount, `item-${index}-discount`, { amount: true })}<input inputMode="decimal" value={item.discount} onChange={(event) => updateItem(index, "discount", event.target.value)} className={fieldClass} data-testid={`input-invoice-item-discount-${index}`} /></label>
                       <label className="sm:col-span-2"><span className={labelClass}>{text.productAction}</span><select value={item.action} onChange={(event) => changeAction(index, event.target.value as InvoiceProductAction)} className={fieldClass} data-testid={`select-invoice-item-action-${index}`}><option value="match">{text.matchExisting}</option><option value="create">{text.createProduct}</option><option value="skip">{text.skipStock}</option></select></label>
                       {item.action === "match" && (
                         <>
