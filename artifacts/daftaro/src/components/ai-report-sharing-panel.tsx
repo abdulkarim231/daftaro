@@ -17,7 +17,7 @@ const COPY = {
     title: "مشاركة التقرير مع شريك",
     description: "أنشئي رابط قراءة فقط لتقرير الفترة الحالية. لا تظهر بيانات العملاء أو معلومات الحساب.",
     privacy: "أي شخص يحصل على الرابط يمكنه مشاهدة التقرير دون تسجيل دخول حتى انتهاء الصلاحية أو إلغاء الرابط.",
-    oneTime: "احتفظي بالرابط الآن؛ لن يُعرض الرمز السري مرة أخرى بعد إغلاق هذه الصفحة.",
+    oneTime: "يمكنك نسخ الرابط كاملًا، بما في ذلك الجزء بعد #، عدة مرات من هذه الصفحة. احتفظي به قبل إغلاقها.",
     expiration: "تنتهي الصلاحية بعد",
     day: "يوم",
     days: "أيام",
@@ -37,7 +37,7 @@ const COPY = {
     loadError: "تعذر تحميل روابط التقارير.",
     createError: "تعذر إنشاء رابط التقرير.",
     revokeError: "تعذر إلغاء الرابط.",
-    manualCopy: "تم تحديد الرابط. انسخيه يدويًا من الحقل.",
+    manualCopy: "تم تحديد الرابط كاملًا. اختاري «نسخ» من المتصفح.",
     period: "الفترة",
     currency: "العملة",
     expires: "ينتهي",
@@ -46,7 +46,7 @@ const COPY = {
     title: "Share this report with a partner",
     description: "Create a read-only link for the selected period. Customer and account details are excluded.",
     privacy: "Anyone with the link can view the report without signing in until it expires or is revoked.",
-    oneTime: "Keep the link now; its secret token will not be shown again after you leave this page.",
+    oneTime: "You can copy the full link, including the part after #, multiple times here. Save it before leaving.",
     expiration: "Link expires in",
     day: "day",
     days: "days",
@@ -66,7 +66,7 @@ const COPY = {
     loadError: "Report links could not be loaded.",
     createError: "The report link could not be created.",
     revokeError: "The link could not be revoked.",
-    manualCopy: "The link is selected. Copy it from the field.",
+    manualCopy: "The full link is selected. Choose Copy in your browser.",
     period: "Period",
     currency: "Currency",
     expires: "Expires",
@@ -100,6 +100,7 @@ export function AiReportSharingPanel({
   const [latestLink, setLatestLink] = useState("");
   const [copied, setCopied] = useState(false);
   const linkInputRef = useRef<HTMLInputElement>(null);
+  const copiedResetTimerRef = useRef<number | null>(null);
 
   async function refreshShares() {
     setLoading(true);
@@ -119,6 +120,23 @@ export function AiReportSharingPanel({
     // This panel is mounted only after the signed-in report is available.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => () => {
+    if (copiedResetTimerRef.current !== null) {
+      window.clearTimeout(copiedResetTimerRef.current);
+    }
+  }, []);
+
+  function markCopied() {
+    setCopied(true);
+    if (copiedResetTimerRef.current !== null) {
+      window.clearTimeout(copiedResetTimerRef.current);
+    }
+    copiedResetTimerRef.current = window.setTimeout(() => {
+      setCopied(false);
+      copiedResetTimerRef.current = null;
+    }, 1800);
+  }
 
   async function createLink() {
     setCreating(true);
@@ -149,10 +167,11 @@ export function AiReportSharingPanel({
   }
 
   async function copyLink() {
+    if (!latestLink) return;
     setError("");
     try {
       await navigator.clipboard.writeText(latestLink);
-      setCopied(true);
+      markCopied();
       return;
     } catch {
       const input = linkInputRef.current;
@@ -162,7 +181,7 @@ export function AiReportSharingPanel({
 
       try {
         if (document.execCommand("copy")) {
-          setCopied(true);
+          markCopied();
           return;
         }
       } catch {
