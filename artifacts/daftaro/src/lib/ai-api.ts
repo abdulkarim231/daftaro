@@ -2,6 +2,12 @@ import { supabase } from "./supabase";
 import { buildPrintableAiReport } from "./printable-ai-report";
 import type { PrintableAiReportData } from "./printable-ai-report";
 
+const configuredApiBaseUrl = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "").replace(/\/+$/, "");
+
+function apiUrl(path: string) {
+  return `${configuredApiBaseUrl}${path.startsWith("/") ? path : `/${path}`}`;
+}
+
 export type AiPeriod = "7d" | "30d" | "90d";
 export type AiLanguage = "ar" | "en";
 
@@ -111,7 +117,7 @@ export function localizeAiError(message: string, language: AiLanguage) {
 async function authenticatedFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
   const { data, error } = await supabase.auth.getSession();
   if (error || !data.session?.access_token) throw new Error("Sign in again to use Daftarik AI.");
-  const response = await fetch(path, {
+  const response = await fetch(apiUrl(path), {
     ...init,
     headers: {
       "Content-Type": "application/json",
@@ -189,7 +195,7 @@ export function revokeAiReportShare(shareId: string) {
 }
 
 export async function getSharedAiReport(shareId: string, token: string) {
-  const response = await fetch(`/api/ai/report-shares/${encodeURIComponent(shareId)}/view`, {
+  const response = await fetch(apiUrl(`/api/ai/report-shares/${encodeURIComponent(shareId)}/view`), {
     method: "POST",
     cache: "no-store",
     headers: { "Content-Type": "application/json" },
