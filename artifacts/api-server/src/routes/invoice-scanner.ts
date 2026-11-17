@@ -8,15 +8,15 @@ import {
   ScanInvoiceFileResponse,
 } from "@workspace/api-zod";
 import { Router, type IRouter, type Request, type Response } from "express";
-import { completeWithOpenRouter, OpenRouterError } from "../lib/openrouter";
-import { extractNativeInvoiceFromPdf } from "../lib/pdf-invoice-text";
+import { completeWithOpenRouter, OpenRouterError } from "../lib/openrouter.ts";
+import { extractNativeInvoiceFromPdf } from "../lib/pdf-invoice-text.ts";
 import {
   buildInvoiceExtractionPrompt,
   extractOcrText,
   extractInvoiceFromOcrText,
   hasDetectedInvoiceValues,
   normalizeExtractedInvoice,
-} from "../lib/invoice-ocr";
+} from "../lib/invoice-ocr.ts";
 
 const router: IRouter = Router();
 const MAX_FILE_BYTES = 1_000_000;

@@ -9,16 +9,16 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import {
   deactivateInvoicePaymentLink,
   createInvoicePaymentLink as createStripeInvoicePaymentLink,
-} from "../lib/stripe-invoice-payment";
+} from "../lib/stripe-invoice-payment.ts";
 import {
   InvoiceAmountError,
   isStripeTestPaymentLink,
   toStripeUnitAmount,
-} from "../lib/stripe-invoice-amount";
+} from "../lib/stripe-invoice-amount.ts";
 import {
   createStripeTestClient,
   StripeTestConfigurationError,
-} from "../lib/stripe-client";
+} from "../lib/stripe-client.ts";
 
 const router: IRouter = Router();
 const PAYMENT_LINK_ID = /^plink_[A-Za-z0-9]+$/;

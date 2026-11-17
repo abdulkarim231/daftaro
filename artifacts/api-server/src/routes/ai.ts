@@ -12,7 +12,7 @@ import {
   type AiPeriod,
   type AiProductRow,
   type AiTransactionRow,
-} from "../lib/ai-analysis";
+} from "../lib/ai-analysis.ts";
 import {
   buildShareableAiReport,
   createReportShareToken,
@@ -21,10 +21,10 @@ import {
   isReportShareToken,
   sanitizePrintableAiReportSnapshot,
   sanitizeShareNarrative,
-} from "../lib/ai-report-share";
-import { boundAiChatAnswer, normalizeAiChatHistoryMessages } from "../lib/ai-chat-history";
-import { localizeAnalysisNarrative } from "../lib/ai-narrative-language";
-import { completeWithOpenRouter, OpenRouterError } from "../lib/openrouter";
+} from "../lib/ai-report-share.ts";
+import { boundAiChatAnswer, normalizeAiChatHistoryMessages } from "../lib/ai-chat-history.ts";
+import { localizeAnalysisNarrative } from "../lib/ai-narrative-language.ts";
+import { completeWithOpenRouter, OpenRouterError } from "../lib/openrouter.ts";
 
 const router: IRouter = Router();
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;

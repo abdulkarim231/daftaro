@@ -2,9 +2,9 @@ import express, { type Express } from "express";
 import cors from "cors";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { pinoHttp } from "pino-http";
-import router from "./routes";
-import stripeWebhookRouter from "./routes/stripe-webhook";
-import { logger } from "./lib/logger";
+import router from "./routes/index.ts";
+import stripeWebhookRouter from "./routes/stripe-webhook.ts";
+import { logger } from "./lib/logger.ts";
 
 const app: Express = express();
 

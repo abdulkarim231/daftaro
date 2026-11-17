@@ -1,4 +1,4 @@
-import type { AiLanguage } from "./ai-analysis";
+import type { AiLanguage } from "./ai-analysis.ts";
 
 type MonthlyTotals = {
   from: string;

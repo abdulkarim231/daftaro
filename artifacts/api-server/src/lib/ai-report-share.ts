@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
-import type { AiAnalysis, AiEvidence } from "./ai-analysis";
+import type { AiAnalysis, AiEvidence } from "./ai-analysis.ts";
 
 export const REPORT_SHARE_EXPIRY_DAYS = [1, 7, 30] as const;
 export type ReportShareExpiryDays = typeof REPORT_SHARE_EXPIRY_DAYS[number];

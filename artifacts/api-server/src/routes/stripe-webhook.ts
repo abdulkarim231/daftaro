@@ -4,8 +4,8 @@ import {
   buildStripeIncomeTransaction,
   extractConfirmedStripePayment,
   paymentMatchesInvoiceAmount,
-} from "../lib/stripe-payment-confirmation";
-import { createStripeTestClient, StripeTestConfigurationError } from "../lib/stripe-client";
+} from "../lib/stripe-payment-confirmation.ts";
+import { createStripeTestClient, StripeTestConfigurationError } from "../lib/stripe-client.ts";
 
 const router: IRouter = Router();
 

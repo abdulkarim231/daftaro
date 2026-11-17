@@ -1,8 +1,8 @@
 import { Router, type IRouter } from "express";
-import healthRouter from "./health";
-import invoicePaymentLinksRouter from "./invoice-payment-links";
-import aiRouter from "./ai";
-import invoiceScannerRouter from "./invoice-scanner";
+import healthRouter from "./health.ts";
+import invoicePaymentLinksRouter from "./invoice-payment-links.ts";
+import aiRouter from "./ai.ts";
+import invoiceScannerRouter from "./invoice-scanner.ts";
 
 const router: IRouter = Router();
 
