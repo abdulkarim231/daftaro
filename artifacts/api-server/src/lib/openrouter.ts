@@ -1,4 +1,9 @@
 type OpenRouterMessage = { role: "system" | "user" | "assistant"; content: string };
+type OpenRouterFetchResponse = {
+  ok: boolean;
+  status: number;
+  json(): Promise<unknown>;
+};
 
 const DEFAULT_FREE_MODEL = "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free";
 const VERIFIED_FREE_FALLBACKS = [
@@ -29,9 +34,10 @@ export async function completeWithOpenRouter(messages: OpenRouterMessage[]) {
   const candidates = [...new Set([model, ...VERIFIED_FREE_FALLBACKS])].slice(0, 3);
   let upstreamRateLimited = false;
   for (const candidate of candidates) {
-    let response: Response;
+    let response: OpenRouterFetchResponse;
     try {
-      response = await fetch(OPENROUTER_ENDPOINT, {
+      // Vercel's Express type pass assigns a conflicting Response type to fetch.
+      response = (await fetch(OPENROUTER_ENDPOINT, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${apiKey}`,
@@ -45,7 +51,7 @@ export async function completeWithOpenRouter(messages: OpenRouterMessage[]) {
           temperature: 0.2,
         }),
         signal: AbortSignal.timeout(45_000),
-      });
+      })) as unknown as OpenRouterFetchResponse;
     } catch (error) {
       if (error instanceof DOMException && error.name === "TimeoutError") {
         throw new OpenRouterError("The AI request timed out. Try again.", 504);
