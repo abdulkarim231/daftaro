@@ -54,6 +54,11 @@ function getSupabaseClient(accessToken: string) {
 }
 
 type SupabaseRequestClient = NonNullable<ReturnType<typeof getSupabaseClient>>;
+type OcrProviderResponse = {
+  ok: boolean;
+  status: number;
+  json(): Promise<unknown>;
+};
 type AuthenticatedUser = {
   client: SupabaseRequestClient;
   userId: string;
@@ -265,7 +270,7 @@ router.post("/invoice-scanner/scan", async (req: Request, res: Response): Promis
   formData.append("detectOrientation", "true");
   formData.append("scale", "true");
 
-  let providerResponse: globalThis.Response;
+  let providerResponse: OcrProviderResponse;
   try {
     providerResponse = await fetch("https://api.ocr.space/parse/image", {
       method: "POST",
