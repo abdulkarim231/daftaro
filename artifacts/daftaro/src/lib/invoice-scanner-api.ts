@@ -1,3 +1,4 @@
+import "./api-client-config";
 import { supabase } from "./supabase";
 import {
   getInvoiceScannerStatus as requestInvoiceScannerStatus,

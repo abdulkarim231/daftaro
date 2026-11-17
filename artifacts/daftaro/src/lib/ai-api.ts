@@ -1,12 +1,7 @@
 import { supabase } from "./supabase";
 import { buildPrintableAiReport } from "./printable-ai-report";
 import type { PrintableAiReportData } from "./printable-ai-report";
-
-const configuredApiBaseUrl = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "").replace(/\/+$/, "");
-
-function apiUrl(path: string) {
-  return `${configuredApiBaseUrl}${path.startsWith("/") ? path : `/${path}`}`;
-}
+import { apiUrl } from "./api-client-config";
 
 export type AiPeriod = "7d" | "30d" | "90d";
 export type AiLanguage = "ar" | "en";
