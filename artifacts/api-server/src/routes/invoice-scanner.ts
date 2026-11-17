@@ -272,12 +272,14 @@ router.post("/invoice-scanner/scan", async (req: Request, res: Response): Promis
 
   let providerResponse: OcrProviderResponse;
   try {
-    providerResponse = await fetch("https://api.ocr.space/parse/image", {
+    // Vercel's Express type pass assigns a conflicting Response type to fetch.
+    // Node's runtime fetch still returns the standard response shape used here.
+    providerResponse = (await fetch("https://api.ocr.space/parse/image", {
       method: "POST",
       headers: { apikey: apiKey },
       body: formData,
       signal: AbortSignal.timeout(60_000),
-    });
+    })) as unknown as OcrProviderResponse;
   } catch {
     sendError(res, 502, "OCR.Space could not be reached. Try again shortly.");
     return;
