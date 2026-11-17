@@ -3,6 +3,7 @@
   "compilerOptions": {
     "noEmit": false,
     "emitDeclarationOnly": false,
+    "noEmitOnError": false,
     "incremental": true,
     "tsBuildInfoFile": ".tsbuildinfo",
     "outDir": "dist",
