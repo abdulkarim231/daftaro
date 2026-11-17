@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "next dev --hostname 0.0.0.0 --port $PORT",
-    "build": "next build",
+    "build": "pnpm --dir ../.. run typecheck:libs && next build",
     "serve": "next start --hostname 0.0.0.0 --port $PORT",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test:money": "node --experimental-strip-types --test tests/money.test.mjs",
